@@ -5,3 +5,7 @@ venv/
 *.egg-info/
 .env
 .DS_Store
+data/
+src/logs/
+*.db
+*.log

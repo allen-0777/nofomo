@@ -211,6 +211,7 @@
         box-shadow: var(--shadow-sm);
         border: 1px solid var(--neutral-200);
         transition: var(--transition);
+        position: relative; /* For delete button */
       }
       .trade-card:hover {
         transform: translateX(4px);
@@ -223,6 +224,21 @@
       .trade-card.sell { 
         border-left: 4px solid var(--danger);
         background: linear-gradient(90deg, var(--danger-bg) 0%, var(--bg-card) 30%);
+      }
+      .trade-card .delete-btn {
+        position: absolute;
+        bottom: 16px;
+        right: 16px;
+        opacity: 0;
+        transition: opacity 0.2s;
+        cursor: pointer;
+        color: var(--neutral-400);
+      }
+      .trade-card:hover .delete-btn {
+        opacity: 1;
+      }
+      .trade-card .delete-btn:hover {
+        color: var(--danger);
       }
       
       /* 漲跌顏色 */
@@ -430,6 +446,31 @@
         50% { transform: translateY(3px); }
       }
       
+      /* Quick Actions */
+      .quick-actions {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+        overflow-x: auto;
+        padding-bottom: 4px;
+      }
+      .quick-action-chip {
+        background: #F3F4F6;
+        color: #4B5563;
+        border: 1px solid #E5E7EB;
+        border-radius: 20px;
+        padding: 6px 12px;
+        font-size: 0.85rem;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .quick-action-chip:hover {
+        background: #E0E7FF;
+        color: #4F46E5;
+        border-color: #C7D2FE;
+      }
+      
       /* 響應式設計 */
       @media (max-width: 768px) {
         .container-fluid { padding: 0.75rem; }
@@ -483,6 +524,62 @@
       const { useState, useEffect, useRef } = React;
       
       const API_BASE = '/api';
+
+      function EditTradeModal({ trade, onSave, onCancel }) {
+        const [formData, setFormData] = useState({
+            ...trade,
+            date: trade.date ? trade.date.split('T')[0] : '',
+            price: trade.entry_price || trade.price || 0,
+            amount: trade.total_value || trade.amount || 0
+        });
+
+        const handleChange = (e) => {
+            const { name, value } = e.target;
+            setFormData(prev => ({ ...prev, [name]: value }));
+        };
+
+        return (
+            <div className="modal d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050}}>
+                <div className="modal-dialog modal-dialog-centered">
+                    <div className="modal-content">
+                        <div className="modal-header">
+                            <h5 className="modal-title">編輯交易</h5>
+                            <button type="button" className="btn-close" onClick={onCancel}></button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="mb-3">
+                                <label className="form-label">日期</label>
+                                <input type="date" className="form-control" name="date" value={formData.date} onChange={handleChange} />
+                            </div>
+                             <div className="mb-3">
+                                <label className="form-label">標的 (Ticker)</label>
+                                <input type="text" className="form-control" name="ticker" value={formData.ticker || ''} onChange={handleChange} />
+                            </div>
+                            <div className="row">
+                                <div className="col-6 mb-3">
+                                    <label className="form-label">價格</label>
+                                    <input type="number" className="form-control" name="price" value={formData.price} onChange={handleChange} />
+                                </div>
+                                <div className="col-6 mb-3">
+                                    <label className="form-label">數量</label>
+                                    <input type="number" className="form-control" name="quantity" value={formData.quantity || ''} onChange={handleChange} />
+                                </div>
+                            </div>
+                             <div className="mb-3">
+                                <label className="form-label">總金額</label>
+                                <input type="number" className="form-control" name="amount" value={formData.amount} onChange={handleChange} />
+                                <div className="form-text">若修改價格或數量，建議手動更新總金額</div>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button type="button" className="btn btn-secondary" onClick={onCancel}>取消</button>
+                            <button type="button" className="btn btn-primary" onClick={() => onSave(formData)}>儲存</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+      }
       
       function App() {
         const [activeTab, setActiveTab] = useState('chat');
@@ -554,11 +651,23 @@
           setLoading(true);
           
           try {
-            const response = await processMessage(input);
+            // 使用後端 Chat API
+            const res = await axios.post(`${API_BASE}/chat`, { message: input });
+            const result = res.data;
+            
+            let content = result.result?.message || result.response;
+            
+            if (!content) content = "處理完成";
+
+            // 簡單美化
+            if (!content.includes('<div')) {
+                content = `<div style="font-size:0.95rem">${content}</div>`;
+            }
+
             setMessages(prev => [...prev, { 
               id: Date.now() + 1, 
               role: 'assistant', 
-              content: response 
+              content: content
             }]);
           } catch (e) {
             setMessages(prev => [...prev, { 
@@ -571,386 +680,15 @@
           setLoading(false);
           loadData();
         };
-        
-        // HTML 輔助函數
-        const row = (label, value, valueStyle = '') =>
-          `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(0,0,0,0.06)">
-            <span style="color:#6B7280;font-size:0.85rem">${label}</span>
-            <span style="font-weight:500;font-size:0.9rem;${valueStyle}">${value}</span>
-          </div>`;
 
-        const section = (title, rows) =>
-          `<div style="background:#F8FAFF;border:1px solid #E8EDFF;border-radius:10px;padding:10px 14px;margin:8px 0">
-            <div style="font-weight:600;color:#4F46E5;font-size:0.85rem;margin-bottom:6px">${title}</div>
-            ${rows}
-          </div>`;
-
-        const tag = (text, bg, color) =>
-          `<span style="display:inline-flex;align-items:center;gap:3px;background:${bg};color:${color};padding:4px 10px;border-radius:20px;font-size:0.8rem;font-weight:500;margin:3px">${text}</span>`;
-
-        const trendColor = (t) => t === 'BULLISH' ? '#10B981' : t === 'BEARISH' ? '#EF4444' : '#6B7280';
-        const trendIcon  = (t) => t === 'BULLISH' ? '↑' : t === 'BEARISH' ? '↓' : '→';
-
-        const processMessage = async (msg) => {
-          const lowerMsg = msg.toLowerCase();
-          const upperMsg = msg.toUpperCase();
-
-          // ── 加密貨幣解析 ────────────────────────────────────
-          const cryptoMap = {
-            'BTC': 'BTC-USD', '比特幣': 'BTC-USD',
-            'ETH': 'ETH-USD', '以太幣': 'ETH-USD', '以太坊': 'ETH-USD',
-            'USDT': 'USDT-USD', '泰達幣': 'USDT-USD',
-            'SOL': 'SOL-USD', 'BNB': 'BNB-USD', 'XRP': 'XRP-USD', 'DOGE': 'DOGE-USD'
-          };
-          
-          let cryptoSymbol = null;
-          let cryptoDisplay = null;
-          // 簡單匹配：若句子包含關鍵字則選取（優先長詞，但這裡詞都很短）
-          for (const [key, val] of Object.entries(cryptoMap)) {
-            // 使用正規表達式確保邊界，避免 ETH 匹配到 BETH (若有)
-            // 這裡簡單用 includes，對中文夠用，英文需注意
-            if (upperMsg.includes(key)) {
-              cryptoSymbol = val;
-              cryptoDisplay = key; // 顯示使用者輸入的名稱或標準名稱
-              break;
-            }
-          }
-
-          // ── 股票代號解析 ────────────────────────────────────
-          // 優先匹配美股英文代號（大寫 1~5 字）
-          const usMatch = !cryptoSymbol && msg.match(/\b([A-Z]{1,5})\b/);
-          // 台股代號：3~6 位數字，但後面不緊跟 股/張（避免把股數誤判為代號）
-          const twMatch = !cryptoSymbol && !usMatch && msg.match(/(?<![.$])\b(\d{3,6})\b(?!\s*[股張])/);
-
-          // tickerDisplay = 顯示用（如 2330、TSLA、比特幣）
-          // tickerSymbol  = API 用（台股 .TW、加密貨幣 -USD）
-          const tickerDisplay = cryptoDisplay || usMatch?.[1] || twMatch?.[1] || null;
-          const isCrypto      = !!cryptoSymbol;
-          const isTW          = !!twMatch;
-          
-          // API Symbol
-          let tickerSymbol = null;
-          if (isCrypto) tickerSymbol = cryptoSymbol;
-          else if (isTW) tickerSymbol = `${tickerDisplay}.TW`;
-          else if (tickerDisplay) tickerSymbol = tickerDisplay;
-
-          // 股數/顆數：數字 + (股/張/顆/個)
-          const quantityMatch = msg.match(/(\d+\.?\d*)\s*[股張顆個]/);
-          // 若沒單位，嘗試抓純數字（需排除掉股票代號本身）
-          // 這裡簡化：若有 tickerMatch，則找另一個數字
-          const allNumbers = msg.match(/\d+\.?\d*/g) || [];
-          let quantityRaw = quantityMatch?.[1];
-          if (!quantityRaw && allNumbers.length > 0) {
-             // 排除掉可能是代號的數字 (如 2330)
-             for (const num of allNumbers) {
-               if (num !== twMatch?.[1]) {
-                 quantityRaw = num;
-                 break;
-               }
-             }
-          }
-          const quantity = quantityRaw || '1';
-
-          // 指定賣價：賣|@|$ 後面的數字
-          const priceMatch = msg.match(/(?:賣|sell|@|\$)\s*(\d+\.?\d*)/i);
-
-          // ── 資金存取 (存/領) ───────────────────────────────
-          const depositMatch = msg.match(/(?:存|deposit)\s*(\d+\.?\d*)/i);
-          const withdrawMatch = msg.match(/(?:領|提|withdraw)\s*(\d+\.?\d*)/i);
-          
-          if (depositMatch || withdrawMatch) {
-            const isDeposit = !!depositMatch;
-            const amount = parseFloat((depositMatch || withdrawMatch)[1]);
-            const isUSD = lowerMsg.includes('美金') || lowerMsg.includes('usd') || msg.includes('$');
-            const currency = isUSD ? 'USD' : 'TWD';
-            const action = isDeposit ? 'DEPOSIT' : 'WITHDRAW';
-            
+        const handleDeleteTrade = async (tradeId) => {
+            if (!confirm('確定要刪除這筆交易記錄嗎？')) return;
             try {
-              await axios.post(`${API_BASE}/trades`, {
-                date: new Date().toISOString().slice(0,16).replace('T',' '),
-                action: action,
-                amount: amount,
-                currency: currency,
-                category: 'CASH',
-                reason: msg
-              });
-              
-              const sign = currency === 'TWD' ? 'NT$' : '$';
-              const color = isDeposit ? '#10B981' : '#EF4444';
-              const icon = isDeposit ? '💰' : '💸';
-              
-              return `
-                <div style="font-size:0.95rem">
-                  <div style="font-weight:700;font-size:1rem;margin-bottom:10px;color:${color}">${icon} ${isDeposit ? '存款已記錄' : '提款已記錄'}</div>
-                  ${section('明細', 
-                    row('金額', `${sign}${amount.toLocaleString()}`, `color:${color};font-weight:700`) +
-                    row('幣別', currency) +
-                    row('說明', msg)
-                  )}
-                  <div style="font-size:0.85rem;color:#6B7280;margin-top:5px">資產餘額已更新，請至統計頁查看。</div>
-                </div>`;
+                await axios.delete(`${API_BASE}/trades/${tradeId}`);
+                loadData();
             } catch (e) {
-              return '<span style="color:#EF4444">⚠️ 無法儲存記錄</span>';
+                alert('刪除失敗');
             }
-          }
-
-          // ── 資產估值 (房子/車子...) ───────────────────────
-          // 格式：[資產名稱] 值 [金額]
-          const assetMatch = msg.match(/(.+?)\s*(?:值|value)\s*(\d+\.?\d*)/i);
-          if (assetMatch && !lowerMsg.includes('買') && !lowerMsg.includes('賣')) {
-             const assetName = assetMatch[1].replace(/資產|我的|這個/g, '').trim();
-             const amount = parseFloat(assetMatch[2]);
-             if (assetName && amount > 0) {
-               try {
-                 await axios.post(`${API_BASE}/trades`, {
-                   date: new Date().toISOString().slice(0,16).replace('T',' '),
-                   action: 'VALUATION',
-                   category: 'ASSET',
-                   asset_name: assetName,
-                   amount: amount,
-                   currency: 'TWD', // 暫定預設 TWD，未來可擴充
-                   reason: msg
-                 });
-                 
-                 return `
-                  <div style="font-size:0.95rem">
-                    <div style="font-weight:700;font-size:1rem;margin-bottom:10px;color:#4F46E5">🏠 資產估值已更新</div>
-                    ${section('資產資訊',
-                      row('項目', assetName) +
-                      row('估值', `NT$${amount.toLocaleString()}`, 'font-weight:700')
-                    )}
-                  </div>`;
-               } catch(e) {
-                 return '<span style="color:#EF4444">⚠️ 無法更新資產</span>';
-               }
-             }
-          }
-
-          // ── 買入 ──────────────────────────────────────────
-          if (lowerMsg.includes('買') || lowerMsg.includes('buy')) {
-            if (!tickerDisplay) return `
-              <div style="font-size:0.9rem;color:#374151">
-                <div style="font-weight:600;margin-bottom:8px">⚠️ 找不到股票代號</div>
-                <div style="background:#F3F4F6;border-radius:8px;padding:10px 14px;line-height:2">
-                  美股：「我買了 100 股 <strong>TSLA</strong>」<br>
-                  台股：「我買了 <strong>2330</strong> 1000股」<br>
-                  台股ETF：「我買了 <strong>0050</strong> 500股」
-                </div>
-              </div>`;
-
-            const ticker   = tickerSymbol;
-            const quantity = quantityMatch?.[1] || '1';
-
-            try {
-              const [priceRes, analysisRes] = await Promise.all([
-                axios.get(`${API_BASE}/quote?ticker=${ticker}`),
-                axios.get(`${API_BASE}/analyze?ticker=${ticker}`)
-              ]);
-              const p = priceRes.data;
-              const a = analysisRes.data;
-
-              if (p.error) return `<span style="color:#EF4444">⚠️ 無法取得 ${tickerDisplay} 的股價資料</span>`;
-
-              // 貨幣符號（台股用 NT$，美股/加密用 $）
-              const currencySign = isTW ? 'NT$' : '$';
-              const marketType = isCrypto ? 'CRYPTO' : (isTW ? 'TW' : 'US');
-
-              await axios.post(`${API_BASE}/trades`, {
-                date: new Date().toISOString().slice(0,16).replace('T',' '),
-                ticker: tickerDisplay,
-                ticker_symbol: tickerSymbol,
-                action: 'BUY',
-                entry_price: p.current_price,
-                quantity: parseFloat(quantity), // 支援小數點（加密貨幣）
-                total_value: p.current_price * parseFloat(quantity),
-                current_price: p.current_price,
-                score: a.score || 3,
-                rating: a.rating || '⭐⭐⭐',
-                suggestion: a.suggestion || '',
-                stop_loss: a.stop_loss, target_1: a.target_1, target_2: a.target_2,
-                reason: msg, rsi: a.rsi, trend: a.trend,
-                ma5: a.ma5, ma20: a.ma20, macd: a.macd,
-                market: marketType,
-                status: 'HOLDING'
-              });
-              
-              let marketTag = '';
-              if (isTW) marketTag = '<span style="background:#E0F2FE;color:#0369A1;font-size:0.75rem;padding:2px 6px;border-radius:4px;font-weight:600">台股</span>';
-              else if (isCrypto) marketTag = '<span style="background:#FEF3C7;color:#B45309;font-size:0.75rem;padding:2px 6px;border-radius:4px;font-weight:600">加密貨幣</span>';
-              else marketTag = '<span style="background:#F0FDF4;color:#166534;font-size:0.75rem;padding:2px 6px;border-radius:4px;font-weight:600">美股</span>';
-
-              return `
-                <div style="font-size:0.95rem">
-                  <div style="font-weight:700;font-size:1rem;margin-bottom:10px;color:#10B981">✅ 買入記錄已儲存</div>
-
-                  <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
-                    <span style="font-size:1.2rem;font-weight:700;color:#111">${tickerDisplay}</span>
-                    ${marketTag}
-                    <span style="color:#6B7280;font-size:0.85rem">${p.name || ''}</span>
-                    <span style="margin-left:auto;font-size:1.1rem;font-weight:700;color:#4F46E5">${currencySign}${p.current_price.toLocaleString(undefined, {maximumFractionDigits: 2})}</span>
-                  </div>
-
-                  ${section('📊 股價資訊',
-                    row('52 週低點', `${currencySign}${p.week52_low}`) +
-                    row('52 週高點', `${currencySign}${p.week52_high}`) +
-                    row('成交量', (p.volume||0).toLocaleString())
-                  )}
-
-                  ${section('📈 技術指標',
-                    row('RSI (14)', a.rsi?.toFixed(1) ?? '—',
-                        a.rsi < 30 ? 'color:#10B981' : a.rsi > 70 ? 'color:#EF4444' : '') +
-                    row('趨勢', `<span style="color:${trendColor(a.trend)}">${trendIcon(a.trend)} ${a.trend}</span>`) +
-                    row('MA5',  a.ma5  ? `${currencySign}${a.ma5.toFixed(2)}`  : '—') +
-                    row('MA20', a.ma20 ? `${currencySign}${a.ma20.toFixed(2)}` : '—') +
-                    (a.macd != null ? row('MACD', a.macd.toFixed(3)) : '')
-                  )}
-
-                  <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:2px">
-                    ${tag('🛡️ 停損 ' + currencySign + a.stop_loss, '#FEF3C7', '#92400E')}
-                    ${tag('🎯 目標1 ' + currencySign + a.target_1, '#D1FAE5', '#065F46')}
-                    ${tag('🎯 目標2 ' + currencySign + a.target_2, '#D1FAE5', '#065F46')}
-                    ${tag(a.rating + ' ' + a.suggestion, '#EDE9FE', '#5B21B6')}
-                  </div>
-                </div>`;
-
-            } catch (e) {
-              return '<span style="color:#EF4444">⚠️ 無法連接伺服器，請稍後再試</span>';
-            }
-          }
-
-          // ── 賣出 ──────────────────────────────────────────
-          if (lowerMsg.includes('賣') || lowerMsg.includes('sell')) {
-            if (!tickerDisplay) return `
-              <div style="font-size:0.9rem;color:#374151">
-                <div style="font-weight:600;margin-bottom:8px">⚠️ 找不到股票代號</div>
-                <div style="background:#F3F4F6;border-radius:8px;padding:10px 14px;line-height:2">
-                  美股：「我賣了 50 股 <strong>TSLA</strong>」<br>
-                  台股：「我賣了 <strong>2330</strong> 500股」
-                </div>
-              </div>`;
-
-            const ticker      = tickerSymbol;
-            const quantity    = quantityMatch?.[1] || '1';
-            const manualPrice = priceMatch ? parseFloat(priceMatch[1]) : null;
-            const currencySign = isTW ? 'NT$' : '$';
-            const marketType = isCrypto ? 'CRYPTO' : (isTW ? 'TW' : 'US');
-
-            try {
-              const priceRes = await axios.get(`${API_BASE}/quote?ticker=${ticker}`);
-              const p = priceRes.data;
-              if (p.error) return `<span style="color:#EF4444">⚠️ 無法取得 ${tickerDisplay} 的股價資料</span>`;
-
-              const sellPrice = manualPrice || p.current_price;
-              const total = (sellPrice * parseFloat(quantity)).toFixed(2);
-
-              await axios.post(`${API_BASE}/trades`, {
-                date: new Date().toISOString().slice(0,16).replace('T',' '),
-                ticker: tickerDisplay,
-                ticker_symbol: ticker,
-                action: 'SELL',
-                entry_price: sellPrice,
-                quantity: parseFloat(quantity),
-                total_value: parseFloat(total),
-                market: marketType,
-                reason: msg, status: 'CLOSED'
-              });
-              
-              let marketTag = '';
-              if (isTW) marketTag = '<span style="background:#E0F2FE;color:#0369A1;font-size:0.75rem;padding:2px 6px;border-radius:4px;font-weight:600">台股</span>';
-              else if (isCrypto) marketTag = '<span style="background:#FEF3C7;color:#B45309;font-size:0.75rem;padding:2px 6px;border-radius:4px;font-weight:600">加密貨幣</span>';
-              else marketTag = '<span style="background:#F0FDF4;color:#166534;font-size:0.75rem;padding:2px 6px;border-radius:4px;font-weight:600">美股</span>';
-
-              return `
-                <div style="font-size:0.95rem">
-                  <div style="font-weight:700;font-size:1rem;margin-bottom:10px;color:#EF4444">🔴 賣出記錄已儲存</div>
-
-                  <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
-                    <span style="font-size:1.2rem;font-weight:700;color:#111">${tickerDisplay}</span>
-                    ${marketTag}
-                    <span style="color:#6B7280;font-size:0.85rem">${p.name || ''}</span>
-                  </div>
-
-                  ${section('💰 成交明細',
-                    row('賣出價格', `${currencySign}${sellPrice.toFixed(2)}`) +
-                    row('賣出股數', `${quantity} 股`) +
-                    row('成交總額', `${currencySign}${total}`, 'color:#EF4444;font-weight:700')
-                  )}
-
-                  <div style="margin-top:8px;color:#6B7280;font-size:0.85rem">此筆交易已平倉，損益將反映在統計頁。</div>
-                </div>`;
-
-            } catch (e) {
-              return '<span style="color:#EF4444">⚠️ 無法連接伺服器</span>';
-            }
-          }
-
-          // ── 查詢分析 ──────────────────────────────────────
-          if (tickerDisplay && (lowerMsg.includes('股價') || lowerMsg.includes('分析') || lowerMsg.includes('多少') || lowerMsg.includes('看') || lowerMsg.includes('查'))) {
-            const currencySign = isTW ? 'NT$' : '$';
-            try {
-              const [priceRes, analysisRes] = await Promise.all([
-                axios.get(`${API_BASE}/quote?ticker=${tickerSymbol}`),
-                axios.get(`${API_BASE}/analyze?ticker=${tickerSymbol}`)
-              ]);
-              const p = priceRes.data;
-              const a = analysisRes.data;
-              if (p.error) return `<span style="color:#EF4444">⚠️ 無法取得 ${tickerDisplay} 的資料</span>`;
-
-              let marketTag = '';
-              if (isTW) marketTag = '<span style="background:#E0F2FE;color:#0369A1;font-size:0.75rem;padding:2px 6px;border-radius:4px;font-weight:600">台股</span>';
-              else if (isCrypto) marketTag = '<span style="background:#FEF3C7;color:#B45309;font-size:0.75rem;padding:2px 6px;border-radius:4px;font-weight:600">加密貨幣</span>';
-              else marketTag = '<span style="background:#F0FDF4;color:#166534;font-size:0.75rem;padding:2px 6px;border-radius:4px;font-weight:600">美股</span>';
-
-              return `
-                <div style="font-size:0.95rem">
-                  <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px">
-                    <span style="font-size:1.2rem;font-weight:700;color:#111">${tickerDisplay}</span>
-                    ${marketTag}
-                    <span style="color:#6B7280;font-size:0.85rem">${p.name || ''}</span>
-                    <span style="margin-left:auto;font-size:1.1rem;font-weight:700;color:#4F46E5">${currencySign}${p.current_price.toLocaleString(undefined, {maximumFractionDigits: 2})}</span>
-                  </div>
-
-                  ${section('📊 股價資訊',
-                    row('52 週低點', `${currencySign}${p.week52_low}`) +
-                    row('52 週高點', `${currencySign}${p.week52_high}`) +
-                    row('成交量', (p.volume||0).toLocaleString())
-                  )}
-
-                  ${section('📈 技術指標',
-                    row('RSI (14)', a.rsi?.toFixed(1) ?? '—',
-                        a.rsi < 30 ? 'color:#10B981' : a.rsi > 70 ? 'color:#EF4444' : '') +
-                    row('趨勢', `<span style="color:${trendColor(a.trend)}">${trendIcon(a.trend)} ${a.trend}</span>`) +
-                    row('MA5',  a.ma5  ? `${currencySign}${a.ma5.toFixed(2)}`  : '—') +
-                    row('MA20', a.ma20 ? `${currencySign}${a.ma20.toFixed(2)}` : '—') +
-                    (a.macd != null ? row('MACD', a.macd.toFixed(3)) : '')
-                  )}
-
-                  ${section('💡 操作建議',
-                    row('停損位', `${currencySign}${a.stop_loss}`, 'color:#EF4444') +
-                    row('目標1',  `${currencySign}${a.target_1}`, 'color:#10B981') +
-                    row('目標2',  `${currencySign}${a.target_2}`, 'color:#10B981')
-                  )}
-
-                  <div style="margin-top:8px">
-                    ${tag(a.rating + ' ' + a.suggestion, '#EDE9FE', '#5B21B6')}
-                  </div>
-                </div>`;
-
-            } catch (e) {
-              return '<span style="color:#EF4444">⚠️ 無法取得資料</span>';
-            }
-          }
-
-          return `
-            <div style="font-size:0.9rem;color:#374151">
-              <div style="font-weight:600;margin-bottom:8px">📝 可以這樣跟我說：</div>
-              <div style="background:#F3F4F6;border-radius:8px;padding:10px 14px;line-height:2">
-                • 「我買了 100 股 TSLA」<br>
-                • 「我賣了 50 股 NVDA 賣價 500」<br>
-                • 「AAPL 股價多少」<br>
-                • 「分析 MSFT」
-              </div>
-            </div>`;
         };
         
         return (
@@ -979,6 +717,11 @@
                   <i className="bi bi-pie-chart me-1"></i> 統計
                 </button>
               </li>
+              <li className="nav-item">
+                <button className={`nav-link ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
+                  <i className="bi bi-gear me-1"></i> 設定
+                </button>
+              </li>
             </ul>
             
             <div className="tab-content">
@@ -992,8 +735,9 @@
                   messagesEndRef={messagesEndRef}
                 />
               )}
-              {activeTab === 'trades' && <TradesTab trades={trades} />}
+              {activeTab === 'trades' && <TradesTab trades={trades} onDelete={handleDeleteTrade} onRefresh={loadData} />}
               {activeTab === 'stats' && <StatsTab trades={trades} portfolio={portfolio} />}
+              {activeTab === 'settings' && <SettingsTab />}
             </div>
             
             {/* 行動裝置底部導航 */}
@@ -1026,6 +770,15 @@
                     <span>統計</span>
                   </button>
                 </li>
+                 <li className="nav-item">
+                  <button 
+                    className={`nav-link ${activeTab === 'settings' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('settings')}
+                  >
+                    <i className="bi bi-gear"></i>
+                    <span>設定</span>
+                  </button>
+                </li>
               </ul>
             </div>
           </div>
@@ -1033,6 +786,40 @@
       }
       
       function ChatTab({ messages, input, setInput, handleSend, loading, messagesEndRef }) {
+        const [listening, setListening] = useState(false);
+        const quickActions = [
+            { label: '買股票', text: '我買了 股 ' },
+            { label: '賣股票', text: '我賣了 股 ' },
+            { label: '存錢', text: '存 ' },
+            { label: '記帳', text: '領 ' },
+            { label: '資產估值', text: '房子 值 ' },
+            { label: '查股價', text: '股價 ' },
+        ];
+
+        const startListening = () => {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                alert('您的瀏覽器不支援語音輸入');
+                return;
+            }
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'zh-TW';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            recognition.onstart = () => setListening(true);
+            recognition.onend = () => setListening(false);
+            recognition.onerror = (event) => {
+                console.error(event.error);
+                setListening(false);
+            };
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                setInput(prev => prev + transcript);
+            };
+            recognition.start();
+        };
+
         return (
           <div>
             <div className="chat-container bg-white rounded p-3 mb-2" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
@@ -1056,11 +843,30 @@
             </div>
             
             <div className="input-wrapper">
+              <div className="quick-actions px-2">
+                  {quickActions.map((action, idx) => (
+                      <div 
+                        key={idx} 
+                        className="quick-action-chip"
+                        onClick={() => setInput(action.text)}
+                      >
+                        {action.label}
+                      </div>
+                  ))}
+              </div>
               <div className="input-group">
+                <button 
+                    className={`btn ${listening ? 'btn-danger' : 'btn-light border'}`} 
+                    type="button" 
+                    onClick={startListening}
+                    title="語音輸入"
+                >
+                  <i className={`bi ${listening ? 'bi-mic-fill' : 'bi-mic'}`}></i>
+                </button>
                 <input 
                   type="text" 
                   className="form-control" 
-                  placeholder="輸入你的交易，例如：我買了 100 股 TSLA"
+                  placeholder="輸入你的交易..."
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSend()}
@@ -1074,7 +880,19 @@
         );
       }
       
-      function TradesTab({ trades }) {
+      function TradesTab({ trades, onDelete, onRefresh }) {
+        const [editingTrade, setEditingTrade] = useState(null);
+
+        const handleSaveEdit = async (updatedTrade) => {
+            try {
+                await axios.put(`${API_BASE}/trades/${updatedTrade.id}`, updatedTrade);
+                setEditingTrade(null);
+                if (onRefresh) onRefresh();
+            } catch (e) {
+                alert('更新失敗');
+            }
+        };
+
         if (!trades || trades.length === 0) {
           return (
             <div className="empty-state">
@@ -1087,18 +905,35 @@
         
         return (
           <div>
-            {trades.slice(0, 20).map((trade, idx) => (
+            {editingTrade && (
+                <EditTradeModal 
+                    trade={editingTrade} 
+                    onSave={handleSaveEdit} 
+                    onCancel={() => setEditingTrade(null)} 
+                />
+            )}
+
+            {trades.slice(0, 50).map((trade, idx) => (
               <div key={idx} className={`trade-card ${trade.action?.toLowerCase()}`}>
+                <div style={{position: 'absolute', bottom: '16px', right: '16px', display: 'flex', gap: '10px'}}>
+                    <div className="text-secondary" style={{cursor: 'pointer'}} onClick={() => setEditingTrade(trade)} title="編輯">
+                        <i className="bi bi-pencil"></i>
+                    </div>
+                    <div className="text-secondary" style={{cursor: 'pointer'}} onClick={() => onDelete(trade.id)} title="刪除">
+                        <i className="bi bi-trash"></i>
+                    </div>
+                </div>
+                
                 <div className="d-flex justify-content-between align-items-start">
                   <div>
                     <h6 className="mb-1">
-                      {trade.action === 'BUY' ? '🟢 買入' : '🔴 賣出'} {trade.ticker}
+                      {trade.action === 'BUY' ? '🟢 買入' : trade.action === 'SELL' ? '🔴 賣出' : trade.action === 'DEPOSIT' ? '💰 存款' : trade.action === 'WITHDRAW' ? '💸 提款' : '🏠 資產'} {trade.ticker || trade.asset_name}
                     </h6>
                     <small className="text-muted">{trade.date}</small>
                   </div>
                   <div className="text-end">
-                    <div className="fw-bold">${trade.entry_price?.toFixed(2)}</div>
-                    <small className="text-muted">{trade.quantity} 股</small>
+                    <div className="fw-bold">${(trade.entry_price || trade.amount || 0).toLocaleString()}</div>
+                    {trade.quantity && <small className="text-muted">{trade.quantity} 股</small>}
                   </div>
                 </div>
                 
@@ -1112,13 +947,6 @@
                 {trade.rsi && (
                   <div className="mt-2 small text-muted">
                     RSI: {trade.rsi.toFixed(1)} | 趨勢: {trade.trend}
-                  </div>
-                )}
-                
-                {(trade.stop_loss || trade.target_1) && (
-                  <div className="mt-2 d-flex gap-2 flex-wrap">
-                    {trade.stop_loss && <span className="badge bg-warning text-dark"><i className="bi bi-shield-check me-1"></i>停損 ${trade.stop_loss}</span>}
-                    {trade.target_1 && <span className="badge bg-success"><i className="bi bi-bullseye me-1"></i>目標 ${trade.target_1}</span>}
                   </div>
                 )}
               </div>
@@ -1144,6 +972,42 @@
             })
             .catch(() => {})
             .finally(() => setFxLoading(false));
+        }, []);
+
+        // 載入資產歷史圖表
+        useEffect(() => {
+            axios.get(`${API_BASE}/portfolio/history`)
+                .then(res => {
+                    const history = res.data.history;
+                    if (history && history.length > 0) {
+                        const dates = history.map(h => h.date);
+                        const values = history.map(h => h.total_equity);
+                        
+                        const trace = {
+                            x: dates,
+                            y: values,
+                            type: 'scatter',
+                            mode: 'lines+markers',
+                            marker: { color: '#6366F1' },
+                            line: { shape: 'spline', width: 3 },
+                            fill: 'tozeroy',
+                            fillcolor: 'rgba(99, 102, 241, 0.1)'
+                        };
+                        
+                        const layout = {
+                            title: '資產淨值走勢',
+                            height: 300,
+                            margin: { t: 40, r: 20, b: 40, l: 50 },
+                            paper_bgcolor: 'rgba(0,0,0,0)',
+                            plot_bgcolor: 'rgba(0,0,0,0)',
+                            xaxis: { gridcolor: '#F3F4F6' },
+                            yaxis: { gridcolor: '#F3F4F6' }
+                        };
+                        
+                        Plotly.newPlot('net-worth-chart', [trace], layout, { displayModeBar: false });
+                    }
+                })
+                .catch(err => console.error(err));
         }, []);
 
         // 載入 K 線圖
@@ -1357,43 +1221,19 @@
             </div>
 
             <div className="card portfolio-card mb-4">
-              <div className="card-body">
-                <div className="row text-center mb-3">
-                  <div className="col-12">
-                    <div className="text-white-50 small">淨資產總額</div>
-                    <h1 className="mb-0 fw-bold" style={{ fontSize: '2.5rem' }}>{fmt(totalAssets)}</h1>
-                  </div>
-                </div>
-                
-                <div className="row text-center">
-                  <div className="col-3 border-end border-white-50" style={{ padding: '0 5px' }}>
-                    <div className="text-white-50 small">股票</div>
-                    <h5 className="mb-0">{fmt(stockValue)}</h5>
-                  </div>
-                  <div className="col-3 border-end border-white-50" style={{ padding: '0 5px' }}>
-                    <div className="text-white-50 small">Crypto</div>
-                    <h5 className="mb-0">{fmt(cryptoValue)}</h5>
-                  </div>
-                  <div className="col-3 border-end border-white-50" style={{ padding: '0 5px' }}>
-                    <div className="text-white-50 small">現金</div>
-                    <h5 className="mb-0">{fmt(totalCash)}</h5>
-                  </div>
-                  <div className="col-3" style={{ padding: '0 5px' }}>
-                    <div className="text-white-50 small">其他</div>
-                    <h5 className="mb-0">{fmt(otherAssetsValue)}</h5>
-                  </div>
-                </div>
-                <hr />
+              <div className="card-body py-4">
                 <div className="text-center">
-                  <div className="text-white-50 small">投資總損益</div>
-                  <h2 className={`mb-0 ${pnlClass}`} style={{ textShadow: '0 2px 10px rgba(0,0,0,0.2)' }}>
-                    {totalPnl >= 0 ? '+' : ''}{fmt(totalPnl)} ({totalPnlPct.toFixed(2)}%)
-                    <span className={`trend-icon ms-2 ${trend === 'up' ? 'text-white' : ''}`} style={{ fontSize: '1.2rem' }}>
-                      {trend === 'up' ? <i className="bi bi-graph-up-arrow"></i> : <i className="bi bi-graph-down-arrow"></i>}
-                    </span>
-                  </h2>
+                  <div className="text-white-50 small mb-1">淨資產總額</div>
+                  <h1 className="mb-0 fw-bold" style={{ fontSize: '2.5rem' }}>{fmt(totalAssets)}</h1>
                 </div>
               </div>
+            </div>
+
+            {/* 新增：資產歷史曲線 */}
+            <div className="card mb-4">
+                <div className="card-body">
+                    <div id="net-worth-chart"></div>
+                </div>
             </div>
 
             {totalAssets > 0 && (
@@ -1486,17 +1326,15 @@
                     <table className="table table-hover mb-0">
                       <thead>
                         <tr>
-                          <th>股票</th>
-                          <th className="text-end">股數</th>
-                          <th className="text-end">成本均價</th>
-                          <th className="text-end">現價</th>
-                          <th className="text-end">市值</th>
-                          <th className="text-end">損益</th>
+                          <th style={{paddingLeft:'16px'}}>股票</th>
+                          <th className="text-end" style={{paddingRight:'16px'}}>市值</th>
                         </tr>
                       </thead>
                       <tbody>
                         {convertedPositions.map((pos, idx) => {
                           const isPositive = pos.pnl >= 0;
+                          const totalVal = stockValue + cryptoValue; // 總投資價值 (不含現金/其他)
+                          const ratio = totalVal > 0 ? (pos.value / totalVal * 100) : 0;
                           
                           let marketStyle = { text: '美', bg: '#F3F4F6', c: '#374151' };
                           if (pos.market === 'TW') marketStyle = { text: '台', bg: '#E0F2FE', c: '#0369A1' };
@@ -1507,22 +1345,28 @@
                           else if (pos.market === 'CRYPTO') marketStyle = { text: '幣', bg: '#FEF3C7', c: '#B45309' };
 
                           return (
-                            <tr key={idx} className={isPositive ? 'pnl-bg-positive' : 'pnl-bg-negative'} style={{ opacity: 0.9 }}>
-                              <td>
-                                <strong>{pos.ticker}</strong>
-                                <span style={{ fontSize: '0.7rem', marginLeft: '4px',
-                                  background: marketStyle.bg,
-                                  color:      marketStyle.c,
-                                  padding: '1px 5px', borderRadius: '3px'
-                                }}>{marketStyle.text}</span>
+                            <tr key={idx}>
+                              <td style={{paddingLeft:'16px', verticalAlign:'middle'}}>
+                                <div className="d-flex align-items-center gap-2">
+                                    <div className="fw-bold" style={{fontSize:'1.1rem'}}>{pos.ticker}</div>
+                                    <span style={{ fontSize: '0.75rem', 
+                                      background: marketStyle.bg,
+                                      color:      marketStyle.c,
+                                      padding: '2px 6px', borderRadius: '4px', fontWeight:'500'
+                                    }}>{marketStyle.text}</span>
+                                </div>
+                                <div className="text-muted small mt-1">
+                                    {pos.quantity.toLocaleString()} 股
+                                </div>
                               </td>
-                              <td className="text-end">{pos.quantity.toLocaleString()}</td>
-                              <td className="text-end">{fmt(pos.avg_price)}</td>
-                              <td className="text-end">{fmt(pos.current_price)}</td>
-                              <td className="text-end">{fmt(pos.value)}</td>
-                              <td className={`text-end ${isPositive ? 'pnl-positive' : 'pnl-negative'}`}>
-                                {isPositive ? '+' : ''}{fmt(pos.pnl)}
-                                <small className="d-block">{isPositive ? '+' : ''}{pos.pnl_pct?.toFixed(1)}%</small>
+                              <td className="text-end" style={{paddingRight:'16px', verticalAlign:'middle'}}>
+                                <div className="fw-bold" style={{fontSize:'1.1rem', color:'#1F2937'}}>{fmt(pos.value)}</div>
+                                <div className="d-flex align-items-center justify-content-end gap-2 mt-1">
+                                    <div className="progress" style={{height:'4px', width:'60px', background:'#E5E7EB'}}>
+                                        <div className="progress-bar" style={{width: `${ratio}%`, background:'var(--primary)'}}></div>
+                                    </div>
+                                    <small className="text-muted" style={{fontSize:'0.75rem', width:'30px'}}>{ratio.toFixed(1)}%</small>
+                                </div>
                               </td>
                             </tr>
                           );
@@ -1568,26 +1412,87 @@
                 </div>
               </div>
             </div>
-
-            <div className="card">
-              <div className="card-header bg-transparent">
-                <h6 className="mb-0"><i className="bi bi-star me-2"></i>進場品質分布</h6>
-              </div>
-              <div className="card-body">
-                {[5,4,3,2,1].map(score => (
-                  <div key={score} className="d-flex align-items-center mb-3">
-                    <span className="me-2" style={{ width: '70px' }}>{'⭐'.repeat(score)}</span>
-                    <div className="flex-grow-1">
-                      <div className="progress" style={{ height: '10px' }}>
-                        <div className="progress-bar" style={{ width: `${totalTrades ? (scoreCounts[score] / totalTrades * 100) : 0}%` }}></div>
-                      </div>
-                    </div>
-                    <span className="ms-2 text-muted" style={{ width: '30px' }}>{scoreCounts[score] || 0}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
+        );
+      }
+
+      function SettingsTab() {
+        const [settings, setSettings] = useState({
+            llm_provider: 'NONE',
+            api_key: '',
+            llm_model: ''
+        });
+        const [saving, setSaving] = useState(false);
+        const [msg, setMsg] = useState('');
+
+        useEffect(() => {
+            axios.get(`${API_BASE}/settings`)
+                .then(res => setSettings(prev => ({...prev, ...res.data})))
+                .catch(err => console.error(err));
+        }, []);
+
+        const handleSave = async () => {
+            setSaving(true);
+            try {
+                await axios.post(`${API_BASE}/settings`, settings);
+                setMsg('設定已儲存');
+                setTimeout(() => setMsg(''), 3000);
+            } catch (e) {
+                setMsg('儲存失敗');
+            }
+            setSaving(false);
+        };
+
+        return (
+            <div className="card">
+                <div className="card-body">
+                    <h5 className="card-title mb-4">AI 設定</h5>
+                    
+                    <div className="mb-3">
+                        <label className="form-label">AI 提供者</label>
+                        <select 
+                            className="form-select"
+                            value={settings.llm_provider}
+                            onChange={e => setSettings({...settings, llm_provider: e.target.value})}
+                        >
+                            <option value="NONE">不使用 (僅規則解析)</option>
+                            <option value="OPENAI">OpenAI (ChatGPT)</option>
+                            <option value="GEMINI">Google Gemini</option>
+                        </select>
+                    </div>
+
+                    {settings.llm_provider !== 'NONE' && (
+                        <>
+                            <div className="mb-3">
+                                <label className="form-label">API Key</label>
+                                <input 
+                                    type="password" 
+                                    className="form-control"
+                                    value={settings.api_key}
+                                    onChange={e => setSettings({...settings, api_key: e.target.value})}
+                                    placeholder="sk-..."
+                                />
+                                <div className="form-text">您的 Key 僅儲存於本地資料庫，不會上傳至其他伺服器。</div>
+                            </div>
+                            <div className="mb-3">
+                                <label className="form-label">模型名稱 (選填)</label>
+                                <input 
+                                    type="text" 
+                                    className="form-control"
+                                    value={settings.llm_model}
+                                    onChange={e => setSettings({...settings, llm_model: e.target.value})}
+                                    placeholder={settings.llm_provider === 'OPENAI' ? 'gpt-3.5-turbo' : 'gemini-1.5-flash'}
+                                />
+                            </div>
+                        </>
+                    )}
+
+                    <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+                        {saving ? '儲存中...' : '儲存設定'}
+                    </button>
+                    {msg && <span className="ms-3 text-success">{msg}</span>}
+                </div>
+            </div>
         );
       }
       

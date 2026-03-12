@@ -1,65 +1,183 @@
 """
-NoFOMO - 投資組合與交易管理模組
+NoFOMO - 投資組合與交易管理模組 (Database Version)
 """
 
 import logging
 from datetime import datetime
-from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Tuple, Any, Optional
 
-from utils import safe_json_read, safe_json_write
+from database import SessionLocal
+from models import Trade, PortfolioSnapshot
 from market_data import get_stock_price
 
 logger = logging.getLogger(__name__)
 
-# Data directory
-DATA_DIR = Path(__file__).parent.parent / 'data'
-TRADES_DIR = DATA_DIR / 'trades'
-PORTFOLIO_FILE = DATA_DIR / 'portfolio.json'
-
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-TRADES_DIR.mkdir(parents=True, exist_ok=True)
-
+def to_dict(trade: Trade) -> Dict:
+    """Convert SQLAlchemy model to dict for compatibility"""
+    return {
+        'id': trade.id,
+        'created_at': trade.created_at.isoformat() if trade.created_at else None,
+        'date': trade.date,
+        'action': trade.action,
+        'ticker': trade.ticker,
+        'ticker_symbol': trade.ticker_symbol,
+        'market': trade.market,
+        'entry_price': trade.price, # Map back to entry_price for compatibility
+        'price': trade.price,
+        'quantity': trade.quantity,
+        'total_value': trade.amount, # Map back to total_value
+        'amount': trade.amount,
+        'currency': trade.currency,
+        'category': trade.category,
+        'asset_name': trade.asset_name,
+        'reason': trade.reason,
+        'status': trade.status,
+        'score': trade.score,
+        'rating': trade.rating,
+        'suggestion': trade.suggestion,
+        'rsi': trade.rsi,
+        'trend': trade.trend,
+        'ma5': trade.ma5,
+        'ma20': trade.ma20,
+        'macd': trade.macd,
+        'stop_loss': trade.stop_loss,
+        'target_1': trade.target_1,
+        'target_2': trade.target_2,
+    }
 
 def get_all_trades() -> List[Dict]:
-    """讀取所有交易記錄"""
-    trades = []
-    # 使用 glob 讀取所有 .json 檔案
-    for f in TRADES_DIR.glob('*.json'):
-        try:
-            trade_data = safe_json_read(f)
-            if trade_data:
-                trades.append(trade_data)
-        except Exception as e:
-            logger.error(f'Failed to read trade file {f}: {e}')
-    
-    # 依日期排序（新到舊）
-    trades.sort(key=lambda x: x.get('date', '') or x.get('created_at', ''), reverse=True)
-    return trades
+    """讀取所有交易記錄 (From DB)"""
+    db = SessionLocal()
+    try:
+        # 依 created_at 倒序排列 (新到舊)
+        trades = db.query(Trade).order_by(Trade.created_at.desc()).all()
+        return [to_dict(t) for t in trades]
+    finally:
+        db.close()
 
+def delete_trade(trade_id: str) -> bool:
+    """刪除交易記錄"""
+    db = SessionLocal()
+    try:
+        trade = db.query(Trade).filter(Trade.id == trade_id).first()
+        if trade:
+            db.delete(trade)
+            db.commit()
+            logger.info(f"Trade deleted: {trade_id}")
+            # Update snapshot after deletion
+            create_snapshot()
+            return True
+        return False
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to delete trade: {e}")
+        return False
+    finally:
+        db.close()
 
 def add_trade(trade_data: Dict) -> str:
-    """新增交易記錄"""
-    # 生成唯一 ID (含微秒避免衝突)
-    trade_id = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
-    trade_data['id'] = trade_id
-    if 'created_at' not in trade_data:
-        trade_data['created_at'] = datetime.now().isoformat()
-    
-    filepath = TRADES_DIR / f"{trade_id}.json"
-    safe_json_write(filepath, trade_data)
-    
-    logger.info(f'New trade added: {trade_data.get("ticker")} {trade_data.get("action")} {trade_data.get("quantity")}')
-    return trade_id
+    """新增交易記錄 (To DB)"""
+    db = SessionLocal()
+    try:
+        # 生成唯一 ID
+        trade_id = trade_data.get('id') or datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+        created_at = datetime.now()
+        
+        # Helper for safe float conversion
+        def safe_float(val):
+            if val is None or val == '': return None
+            try: return float(val)
+            except: return None
 
+        trade = Trade(
+            id=trade_id,
+            created_at=created_at,
+            date=trade_data.get('date', created_at.isoformat()),
+            action=trade_data.get('action'),
+            ticker=trade_data.get('ticker'),
+            ticker_symbol=trade_data.get('ticker_symbol'),
+            market=trade_data.get('market'),
+            price=safe_float(trade_data.get('entry_price') or trade_data.get('price')),
+            quantity=safe_float(trade_data.get('quantity')),
+            amount=safe_float(trade_data.get('total_value') or trade_data.get('amount')),
+            currency=trade_data.get('currency', 'TWD'),
+            category=trade_data.get('category', 'STOCK'),
+            asset_name=trade_data.get('asset_name'),
+            reason=trade_data.get('reason'),
+            status=trade_data.get('status', 'HOLDING'),
+            score=int(trade_data.get('score')) if trade_data.get('score') else None,
+            rating=trade_data.get('rating'),
+            suggestion=trade_data.get('suggestion'),
+            rsi=safe_float(trade_data.get('rsi')),
+            trend=trade_data.get('trend'),
+            ma5=safe_float(trade_data.get('ma5')),
+            ma20=safe_float(trade_data.get('ma20')),
+            macd=safe_float(trade_data.get('macd')),
+            stop_loss=safe_float(trade_data.get('stop_loss')),
+            target_1=safe_float(trade_data.get('target_1')),
+            target_2=safe_float(trade_data.get('target_2')),
+        )
+        
+        db.add(trade)
+        db.commit()
+        logger.info(f'New trade added to DB: {trade_id}')
+        
+        # Update snapshot after adding
+        create_snapshot()
+        
+        return trade_id
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to add trade: {e}")
+        raise e
+    finally:
+        db.close()
+
+def edit_trade(trade_id: str, updates: Dict) -> bool:
+    """編輯交易記錄"""
+    db = SessionLocal()
+    try:
+        trade = db.query(Trade).filter(Trade.id == trade_id).first()
+        if not trade:
+            return False
+            
+        def safe_float(val):
+            if val is None or val == '': return None
+            try: return float(val)
+            except: return None
+
+        # 可編輯的欄位
+        if 'date' in updates: trade.date = updates['date']
+        if 'ticker' in updates: trade.ticker = updates['ticker']
+        if 'price' in updates: 
+            trade.price = safe_float(updates['price'])
+        if 'quantity' in updates: 
+            trade.quantity = safe_float(updates['quantity'])
+        if 'amount' in updates:
+            trade.amount = safe_float(updates['amount'])
+        
+        # 自動重新計算總金額 (如果修改了價或量)
+        if trade.price is not None and trade.quantity is not None:
+            trade.amount = trade.price * trade.quantity
+
+        db.commit()
+        logger.info(f"Trade edited: {trade_id}")
+        
+        create_snapshot()
+        return True
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to edit trade: {e}")
+        return False
+    finally:
+        db.close()
 
 def _detect_ticker_symbol(display_ticker: str, stored_symbol: str = '') -> tuple:
     """
     從 ticker 判斷市場別與完整 yfinance symbol。
     回傳: (ticker_symbol, market)
     """
-    # 若已有儲存的 symbol (例如從前端傳來的 BTC-USD)
     if stored_symbol:
         if stored_symbol.endswith('-USD'):
             return stored_symbol, 'CRYPTO'
@@ -67,7 +185,6 @@ def _detect_ticker_symbol(display_ticker: str, stored_symbol: str = '') -> tuple
             return stored_symbol, 'TW'
         return stored_symbol, 'US'
     
-    # 簡單判斷規則
     if display_ticker.isdigit():
         return display_ticker + '.TW', 'TW'
     if display_ticker in ['BTC', 'ETH', 'USDT', 'SOL', 'BNB', 'XRP', 'DOGE']:
@@ -79,19 +196,24 @@ def _detect_ticker_symbol(display_ticker: str, stored_symbol: str = '') -> tuple
 def aggregate_positions(trades: List[Dict]) -> Dict[str, Dict]:
     """
     將交易清單聚合成目前持倉（含平均成本、市場別）
-    回傳格式:
-      { 'AAPL': { 'quantity': 10, 'cost': 1500.0, 'avg_price': 150.0,
-                  'ticker_symbol': 'AAPL', 'market': 'US' }, ... }
     """
     positions: Dict[str, Dict] = {}
 
+    # 需按時間正序計算成本 (舊到新)
     sorted_trades = sorted(trades, key=lambda x: x.get('date', '') or x.get('created_at', ''))
 
     for trade in sorted_trades:
-        ticker = trade.get('ticker', '').upper()
+        category = trade.get('category', 'STOCK')
+        if category != 'STOCK' and category != 'CRYPTO': # Skip cash/assets
+             pass
+
         action = trade.get('action', '').lower()
-        quantity = int(trade.get('quantity', 0))
-        price = float(trade.get('entry_price', 0) or trade.get('price', 0))
+        if action not in ['buy', 'sell']:
+            continue
+
+        ticker = trade.get('ticker', '').upper()
+        quantity = trade.get('quantity', 0) or 0
+        price = float(trade.get('entry_price', 0) or trade.get('price', 0) or 0)
 
         if not ticker:
             continue
@@ -127,10 +249,8 @@ def aggregate_positions(trades: List[Dict]) -> Dict[str, Dict]:
 def enrich_positions_with_prices(positions: Dict[str, Dict]) -> Tuple[List[Dict], float]:
     """
     並行查詢現價，計算每個部位的損益
-    回傳: (details_list, total_market_value)
     """
     def fetch_one(ticker, pos):
-        # 使用完整 yfinance symbol 查詢（含 .TW）
         symbol = pos.get('ticker_symbol', ticker)
         price_data = get_stock_price(symbol)
         current_price = 0.0
@@ -149,7 +269,7 @@ def enrich_positions_with_prices(positions: Dict[str, Dict]) -> Tuple[List[Dict]
         return {
             'ticker': ticker,
             'ticker_symbol': symbol,
-            'market': pos.get('market', 'US'),   # 'US' | 'TW'
+            'market': pos.get('market', 'US'),
             'quantity': pos['quantity'],
             'avg_price': round(pos['avg_price'], 2),
             'current_price': round(current_price, 2),
@@ -162,7 +282,6 @@ def enrich_positions_with_prices(positions: Dict[str, Dict]) -> Tuple[List[Dict]
     details = []
     total_value = 0.0
 
-    # 使用 ThreadPoolExecutor 並行查詢
     with ThreadPoolExecutor(max_workers=10) as executor:
         futures = {
             ticker: executor.submit(fetch_one, ticker, pos)
@@ -182,7 +301,6 @@ def enrich_positions_with_prices(positions: Dict[str, Dict]) -> Tuple[List[Dict]
 
 def calculate_cash_balances(trades: List[Dict]) -> Dict[str, float]:
     """從交易紀錄計算各幣別現金餘額"""
-    # 預設 TWD/USD 為 0
     balances = {'TWD': 0.0, 'USD': 0.0} 
     
     sorted_trades = sorted(trades, key=lambda x: x.get('date', '') or x.get('created_at', ''))
@@ -190,15 +308,12 @@ def calculate_cash_balances(trades: List[Dict]) -> Dict[str, float]:
     for trade in sorted_trades:
         action = trade.get('action', '').upper()
         
-        # 判斷幣別 (優先使用明確指定的 currency)
         currency = trade.get('currency')
         if not currency:
-            # 相容舊有股票交易
             market = trade.get('market', 'US')
             currency = 'USD' if market == 'US' else 'TWD'
             
-        # 取得金額 (股票交易用 total_value，現金/資產用 amount)
-        amount = float(trade.get('total_value', 0) or trade.get('amount', 0))
+        amount = float(trade.get('total_value', 0) or trade.get('amount', 0) or 0)
         
         if currency not in balances:
             balances[currency] = 0.0
@@ -253,20 +368,15 @@ def get_portfolio_summary() -> Dict:
             'positions': []
         }
 
-    # 1. 股票持倉
     positions = aggregate_positions(trades)
     total_cost = sum(p['cost'] for p in positions.values())
     
-    # 2. 股票現價
     position_details, stock_value = enrich_positions_with_prices(positions)
 
-    # 3. 現金餘額 (多幣別)
     cash_balances = calculate_cash_balances(trades)
     
-    # 4. 其他資產
     other_assets = aggregate_other_assets(trades)
     
-    # 5. 損益 (僅股票)
     total_pnl = stock_value - total_cost
     total_pnl_pct = (total_pnl / total_cost * 100) if total_cost > 0 else 0
 
@@ -274,7 +384,6 @@ def get_portfolio_summary() -> Dict:
         'cash_balances': cash_balances,
         'stock_value': round(stock_value, 2),
         'other_assets': other_assets,
-        # total_assets 在後端難以精確加總(因多幣別)，交由前端換算
         'total_assets': 0, 
         'total_cost': round(total_cost, 2),
         'total_pnl': round(total_pnl, 2),
@@ -283,6 +392,71 @@ def get_portfolio_summary() -> Dict:
         'updated_at': datetime.now().isoformat()
     }
 
+def create_snapshot():
+    """建立資產快照"""
+    try:
+        summary = get_portfolio_summary()
+        
+        # 簡單匯率換算 (USD -> TWD)
+        # 這裡為了快照一致性，假設 1 USD = 32 TWD，或者應該從 API 抓
+        # 為了避免循環依賴或網絡延遲，這裡用固定值或簡單估算
+        # 理想情況是傳入匯率，但這裡簡化處理
+        usd_rate = 32.0 
+
+        stock_val = 0.0
+        crypto_val = 0.0
+        
+        # 分離 Stock / Crypto
+        for p in summary['positions']:
+            val_twd = p['value']
+            if p.get('market') != 'TW':
+                val_twd = p['value'] * usd_rate # 假設非 TW 都是 USD 計價
+            
+            if p.get('market') == 'CRYPTO':
+                crypto_val += val_twd
+            else:
+                stock_val += val_twd
+
+        cash_val = summary['cash_balances'].get('TWD', 0) + (summary['cash_balances'].get('USD', 0) * usd_rate)
+        
+        other_val = sum(a['value'] for a in summary['other_assets']) # 假設其他資產都是 TWD
+        
+        total_equity = stock_val + crypto_val + cash_val + other_val
+        
+        db = SessionLocal()
+        snapshot = PortfolioSnapshot(
+            total_equity=total_equity,
+            stock_value=stock_val,
+            crypto_value=crypto_val,
+            cash_value=cash_val,
+            other_assets_value=other_val,
+            pnl=summary['total_pnl'],
+            pnl_percent=summary['total_pnl_pct']
+        )
+        db.add(snapshot)
+        db.commit()
+        db.close()
+        logger.info(f"Portfolio snapshot created: {total_equity}")
+    except Exception as e:
+        logger.error(f"Failed to create snapshot: {e}")
+
+def get_portfolio_history(limit: int = 30) -> List[Dict]:
+    """取得資產歷史紀錄"""
+    db = SessionLocal()
+    try:
+        snapshots = db.query(PortfolioSnapshot).order_by(PortfolioSnapshot.date.asc()).all()
+        # 簡單過濾：每天只取最後一筆 (如果一天有多筆)
+        # 或者直接回傳所有，前端處理
+        return [{
+            'date': s.date.isoformat(),
+            'total_equity': s.total_equity,
+            'stock_value': s.stock_value,
+            'crypto_value': s.crypto_value,
+            'cash_value': s.cash_value,
+            'other_assets_value': s.other_assets_value
+        } for s in snapshots]
+    finally:
+        db.close()
 
 def get_trade_statistics() -> Dict:
     """交易統計分析"""
@@ -295,7 +469,10 @@ def get_trade_statistics() -> Dict:
 
     ticker_stats: Dict[str, Dict] = {}
     for trade in trades:
-        ticker = trade.get('ticker', '').upper()
+        ticker = trade.get('ticker', '')
+        if not ticker: continue
+        ticker = ticker.upper()
+        
         if ticker not in ticker_stats:
             ticker_stats[ticker] = {'buy': 0, 'sell': 0, 'total': 0}
         action = trade.get('action', '').lower()
@@ -319,12 +496,6 @@ def get_risk_assessment() -> Dict:
     """風險評估"""
     summary = get_portfolio_summary()
     positions = summary.get('positions', [])
-    total_value = summary.get('total_assets', 0) # 修正: 用總資產還是證券價值? api.py 原本用 total_value (stock_value + cash?) no, api.py used total_value from enrich which is STOCK value.
-    # Check original api.py: 
-    # total_value = perf_data['total_value'] -> this was stock value.
-    # But denominator: max_position = max(p['value'] / total_value ...)
-    # If total_value is 0 (all cash), div by zero.
-    
     stock_value = summary.get('stock_value', 0)
     
     if not positions or stock_value == 0:

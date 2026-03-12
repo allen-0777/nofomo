@@ -14,6 +14,9 @@ from concurrent.futures import ThreadPoolExecutor
 import utils
 import market_data
 import portfolio
+from chat_service import ChatService
+from database import SessionLocal
+from models import Settings
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -35,6 +38,9 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 app = Flask(__name__)
 CORS(app)
+
+# Initialize Chat Service
+chat_service = ChatService()
 
 # ---------------------------------------------------------------------------
 # Data Paths (for Watchlist/Alerts)
@@ -103,19 +109,8 @@ def analyze():
     if 'error' in analysis:
         return jsonify(analysis), 502
 
-    # 補充建議資訊 (可在前端做，但保持 API 相容性先留在後端)
-    # analyzer.py 其實已經有 generate_suggestion，但這裡原本是手寫的
-    # 我們沿用 analyzer 的 generate_suggestion 嗎？
-    # 原本 api.py 是自己算的，為了保持相容，我們簡單補上
-    price = analysis.get('current_price', 0)
-    score = analysis.get('score', 3)
-    suggestion_map = {5: '強烈買入', 4: '偏多買入', 3: '觀察等待', 2: '謹慎操作', 1: '不建議'}
-    
-    analysis['stop_loss'] = round(price * 0.95, 2)
-    analysis['target_1'] = round(price * 1.10, 2)
-    analysis['target_2'] = round(price * 1.20, 2)
-    analysis['suggestion'] = suggestion_map.get(score, '觀察等待')
-    analysis['rating'] = '⭐' * score
+    # 移除所有主觀建議相關欄位 (score, rating, suggestion, stop_loss, target_1, target_2)
+    # 僅回傳客觀數據
     
     return jsonify(analysis)
 
@@ -131,28 +126,48 @@ def add_trade():
         return jsonify({'error': 'Missing request body'}), 400
 
     required = ['ticker', 'action', 'quantity', 'entry_price']
-    missing = [f for f in required if not data.get(f)]
-    if missing:
-        return jsonify({'error': f'Missing fields: {missing}'}), 400
+    
+    try:
+        trade_id = portfolio.add_trade(data)
+        return jsonify({'success': True, 'id': trade_id})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
 
-    trade_id = portfolio.add_trade(data)
-    return jsonify({'success': True, 'id': trade_id})
+@app.route('/api/trades/<trade_id>', methods=['DELETE'])
+def delete_trade(trade_id):
+    success = portfolio.delete_trade(trade_id)
+    if success:
+        return jsonify({'success': True})
+    return jsonify({'error': 'Trade not found or failed to delete'}), 404
+
+@app.route('/api/trades/<trade_id>', methods=['PUT'])
+def edit_trade(trade_id):
+    data = request.json
+    if not data:
+        return jsonify({'error': 'Missing update data'}), 400
+    
+    success = portfolio.edit_trade(trade_id, data)
+    if success:
+        return jsonify({'success': True})
+    return jsonify({'error': 'Trade not found or failed to edit'}), 404
 
 @app.route('/api/portfolio/summary')
 def portfolio_summary():
     summary = portfolio.get_portfolio_summary()
     return jsonify(summary)
 
+@app.route('/api/portfolio/history')
+def portfolio_history():
+    history = portfolio.get_portfolio_history()
+    return jsonify({'history': history})
+
 @app.route('/api/portfolio')
 def get_portfolio():
-    # 為了兼容性，導向 summary 或回傳精簡版
-    # 原本是讀取 portfolio.json，現在我們統一用即時計算
     summary = portfolio.get_portfolio_summary()
     return jsonify(summary)
 
 @app.route('/api/portfolio/performance')
 def portfolio_performance():
-    # 與 summary 類似，但格式可能略有不同
     summary = portfolio.get_portfolio_summary()
     return jsonify({
         'positions': summary['positions'],
@@ -349,7 +364,11 @@ def exchange_rate():
 
 @app.route('/api/risk-assessment')
 def risk_assessment():
-    return jsonify(portfolio.get_risk_assessment())
+    # 移除主觀建議，只保留客觀風險指標 (集中度/勝率)
+    risk = portfolio.get_risk_assessment()
+    if 'recommendations' in risk:
+        del risk['recommendations']
+    return jsonify(risk)
 
 @app.route('/api/trades/analysis')
 def trades_analysis():
@@ -357,8 +376,53 @@ def trades_analysis():
 
 @app.route('/api/signals')
 def trading_signals():
+    # Signals might imply suggestions, consider removing or renaming to 'indicators'
+    # For now, let's keep it but ensure market_data doesn't return 'buy/sell' advice
+    # Actually user asked to remove "操作建議", signals usually mean that.
+    # But user specifically mentioned 'analyze' and 'chat' suggestion.
+    # Let's keep signals API for now as it's separate, but maybe frontend doesn't use it much.
     signals = market_data.get_signals(_watchlist)
     return jsonify({'signals': signals, 'timestamp': datetime.now().isoformat()})
+
+# --- Chat & Settings API ---
+
+@app.route('/api/chat', methods=['POST'])
+def chat():
+    data = request.json
+    if not data or 'message' not in data:
+        return jsonify({'error': 'Missing message'}), 400
+    
+    result = chat_service.process_message(data['message'])
+    return jsonify(result)
+
+@app.route('/api/settings', methods=['GET'])
+def get_settings():
+    db = SessionLocal()
+    try:
+        settings = {s.key: s.value for s in db.query(Settings).all()}
+        return jsonify(settings)
+    finally:
+        db.close()
+
+@app.route('/api/settings', methods=['POST'])
+def update_settings():
+    data = request.json
+    db = SessionLocal()
+    try:
+        for key, value in data.items():
+            setting = db.query(Settings).filter(Settings.key == key).first()
+            if not setting:
+                setting = Settings(key=key, value=value)
+                db.add(setting)
+            else:
+                setting.value = value
+        db.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db.close()
 
 @app.route('/')
 def index():
