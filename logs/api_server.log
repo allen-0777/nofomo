@@ -1,0 +1,42 @@
+ * Serving Flask app 'api'
+ * Debug mode: on
+2026-03-08 01:03:09,012 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.33.17:5000
+2026-03-08 01:03:09,013 - INFO - [33mPress CTRL+C to quit[0m
+2026-03-08 01:03:09,022 - INFO -  * Restarting with stat
+2026-03-08 01:03:10,131 - WARNING -  * Debugger is active!
+2026-03-08 01:03:10,158 - INFO -  * Debugger PIN: 129-705-764
+2026-03-08 01:03:10,268 - INFO - 127.0.0.1 - - [08/Mar/2026 01:03:10] "GET /api/health HTTP/1.1" 200 -
+2026-03-08 01:03:35,304 - INFO - Quote request: AAPL
+2026-03-08 01:03:37,372 - INFO - 127.0.0.1 - - [08/Mar/2026 01:03:37] "GET /api/quote?ticker=AAPL HTTP/1.1" 200 -
+2026-03-08 01:03:39,883 - INFO - Quote request: AAPL
+2026-03-08 01:03:39,883 - INFO - Cache hit: AAPL
+2026-03-08 01:03:39,883 - INFO - 127.0.0.1 - - [08/Mar/2026 01:03:39] "GET /api/quote?ticker=AAPL HTTP/1.1" 200 -
+2026-03-08 01:03:39,897 - INFO - 127.0.0.1 - - [08/Mar/2026 01:03:39] "GET /api/health HTTP/1.1" 200 -
+2026-03-08 01:04:07,799 - INFO - Analyze request: NVDA
+2026-03-08 01:04:07,931 - INFO - Analyze success: NVDA score=3
+2026-03-08 01:04:07,932 - INFO - 127.0.0.1 - - [08/Mar/2026 01:04:07] "GET /api/analyze?ticker=NVDA HTTP/1.1" 200 -
+2026-03-08 02:02:06,216 - INFO -  * Detected change in '/Users/liyuzhan/.openclaw/workspace/nofomo/src/api.py', reloading
+2026-03-08 02:02:06,603 - INFO -  * Restarting with stat
+2026-03-08 02:02:08,251 - WARNING -  * Debugger is active!
+2026-03-08 02:02:08,274 - INFO -  * Debugger PIN: 129-705-764
+2026-03-08 02:02:13,126 - INFO -  * Detected change in '/Users/liyuzhan/.openclaw/workspace/nofomo/src/api.py', reloading
+2026-03-08 02:02:13,407 - INFO -  * Restarting with stat
+2026-03-08 02:02:14,457 - WARNING -  * Debugger is active!
+2026-03-08 02:02:14,476 - INFO -  * Debugger PIN: 129-705-764
+2026-03-08 02:02:20,382 - INFO -  * Detected change in '/Users/liyuzhan/.openclaw/workspace/nofomo/src/api.py', reloading
+2026-03-08 02:02:20,693 - INFO -  * Restarting with stat
+2026-03-08 02:02:21,829 - WARNING -  * Debugger is active!
+2026-03-08 02:02:21,848 - INFO -  * Debugger PIN: 129-705-764
+2026-03-08 02:02:42,085 - INFO -  * Detected change in '/Users/liyuzhan/.openclaw/workspace/nofomo/src/api.py', reloading
+2026-03-08 02:02:42,380 - INFO -  * Restarting with stat
+2026-03-08 02:02:43,436 - WARNING -  * Debugger is active!
+2026-03-08 02:02:43,455 - INFO -  * Debugger PIN: 129-705-764
+2026-03-08 02:03:00,097 - INFO -  * Detected change in '/Users/liyuzhan/.openclaw/workspace/nofomo/src/api.py', reloading
+2026-03-08 02:03:00,388 - INFO -  * Restarting with stat
+2026-03-08 02:03:01,493 - WARNING -  * Debugger is active!
+2026-03-08 02:03:01,512 - INFO -  * Debugger PIN: 129-705-764
+/usr/local/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/multiprocessing/resource_tracker.py:396: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown: {'/mp-x1kf05ld'}
+  warnings.warn(

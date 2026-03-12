@@ -1,0 +1,1597 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#4F46E5" />
+    <meta name="color-scheme" content="light" />
+    <title>📈 NoFOMO - 股票交易記錄</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+      :root {
+        /* 主色調 - 現代化漸層系統 */
+        --primary: #6366F1;
+        --primary-light: #818CF8;
+        --primary-dark: #4F46E5;
+        --primary-glow: rgba(99, 102, 241, 0.25);
+        
+        /* 漲跌色 - 更鮮明 */
+        --success: #10B981;
+        --success-light: #D1FAE5;
+        --success-bg: rgba(16, 185, 129, 0.1);
+        --danger: #EF4444;
+        --danger-light: #FEE2E2;
+        --danger-bg: rgba(239, 68, 68, 0.1);
+        --warning: #F59E0B;
+        --warning-light: #FEF3C7;
+        
+        /* 中性色 - 更柔和 */
+        --neutral-50: #F9FAFB;
+        --neutral-100: #F3F4F6;
+        --neutral-200: #E5E7EB;
+        --neutral-300: #D1D5DB;
+        --neutral-400: #9CA3AF;
+        --neutral-500: #6B7280;
+        --neutral-600: #4B5563;
+        --neutral-700: #374151;
+        --neutral-800: #1F2937;
+        --neutral-900: #111827;
+        
+        /* 背景色 - 加入層次 */
+        --bg-main: linear-gradient(135deg, #F9FAFB 0%, #EEF2FF 100%);
+        --bg-card: #FFFFFF;
+        --bg-accent: #EEF2FF;
+        --bg-hover: #F3F4F6;
+        
+        /* 陰影 - 更精緻 */
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+        --shadow-lg: 0 10px 25px rgba(0,0,0,0.12);
+        --shadow-glow: 0 0 20px var(--primary-glow);
+        
+        /* 圓角 - 更現代 */
+        --radius-sm: 8px;
+        --radius-md: 12px;
+        --radius-lg: 16px;
+        --radius-xl: 24px;
+        
+        /* 字體 */
+        --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+        
+        /* 轉場 */
+        --transition: all 0.2s ease;
+      }
+      
+      /* 強制使用淺色模式，避免輸入框文字看不清 */
+      
+      body {
+        background: var(--bg-main);
+        font-family: var(--font-sans);
+        min-height: 100vh;
+        color: var(--neutral-800);
+      }
+      
+      /* 頂部導航優化 */
+      .app-header {
+        background: linear-gradient(135deg, var(--primary) 0%, #8B5CF6 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      
+      /* 標籤導航 - 更時尚 */
+      .nav-tabs {
+        border: none;
+        gap: 8px;
+      }
+      .nav-tabs .nav-link {
+        border: none;
+        border-radius: var(--radius-lg);
+        padding: 10px 20px;
+        font-weight: 500;
+        color: var(--neutral-500);
+        background: var(--neutral-100);
+        transition: var(--transition);
+      }
+      .nav-tabs .nav-link:hover {
+        background: var(--neutral-200);
+        transform: translateY(-1px);
+      }
+      .nav-tabs .nav-link.active {
+        background: var(--primary);
+        color: white;
+        box-shadow: var(--shadow-glow);
+      }
+      
+      /* 卡片樣式 */
+      .card {
+        border: none;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        transition: var(--transition);
+      }
+      .card:hover {
+        box-shadow: var(--shadow-md);
+      }
+      
+      /* 對話氣泡 - 現代化設計 */
+      .chat-container {
+        height: calc(100vh - 220px);
+        overflow-y: auto;
+        scroll-behavior: smooth;
+      }
+      .chat-bubble {
+        max-width: 85%;
+        padding: 14px 18px;
+        border-radius: var(--radius-xl);
+        margin-bottom: 12px;
+        animation: bubbleIn 0.3s ease;
+        line-height: 1.6;
+      }
+      @keyframes bubbleIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .chat-bubble.user {
+        background: linear-gradient(135deg, var(--primary) 0%, #8B5CF6 100%);
+        color: white;
+        border-bottom-right-radius: 4px;
+        margin-left: auto;
+      }
+      .chat-bubble.assistant {
+        background: var(--bg-card);
+        color: var(--neutral-800);
+        border-bottom-left-radius: 4px;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--neutral-200);
+      }
+      
+      /* 輸入框 - 懸浮式設計 */
+      .input-wrapper {
+        position: sticky;
+        bottom: 70px;
+        background: var(--bg-main);
+        padding: 12px 0;
+        backdrop-filter: blur(10px);
+      }
+      .input-group {
+        background: var(--bg-card);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-md);
+        padding: 6px;
+        border: 2px solid transparent;
+        transition: var(--transition);
+      }
+      .input-group:focus-within {
+        border-color: var(--primary);
+        box-shadow: var(--shadow-glow);
+      }
+      .input-group .form-control {
+        border: none;
+        background: #FFFFFF;
+        padding: 12px 16px;
+        color: #111827;
+      }
+      .input-group .form-control:focus {
+        box-shadow: none;
+        background: #FFFFFF;
+        color: #111827;
+      }
+      .input-group .form-control::placeholder {
+        color: #9CA3AF;
+      }
+      .input-group .btn {
+        border-radius: var(--radius-lg);
+        padding: 10px 20px;
+      }
+      
+      /* 按鈕 - 漸層效果 */
+      .btn-primary {
+        background: linear-gradient(135deg, var(--primary) 0%, #8B5CF6 100%);
+        border: none;
+        font-weight: 500;
+        transition: var(--transition);
+      }
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-glow);
+      }
+      .btn-primary:disabled {
+        opacity: 0.7;
+        transform: none;
+      }
+      
+      /* 交易卡片 - 更精緻 */
+      .trade-card {
+        background: var(--bg-card);
+        border-radius: var(--radius-lg);
+        padding: 16px;
+        margin-bottom: 12px;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--neutral-200);
+        transition: var(--transition);
+      }
+      .trade-card:hover {
+        transform: translateX(4px);
+        box-shadow: var(--shadow-md);
+      }
+      .trade-card.buy { 
+        border-left: 4px solid var(--success);
+        background: linear-gradient(90deg, var(--success-bg) 0%, var(--bg-card) 30%);
+      }
+      .trade-card.sell { 
+        border-left: 4px solid var(--danger);
+        background: linear-gradient(90deg, var(--danger-bg) 0%, var(--bg-card) 30%);
+      }
+      
+      /* 漲跌顏色 */
+      .pnl-positive { 
+        color: var(--success); 
+        font-weight: 600; 
+      }
+      .pnl-negative { 
+        color: var(--danger); 
+        font-weight: 600; 
+      }
+      .pnl-bg-positive { 
+        background-color: var(--success-bg) !important; 
+      }
+      .pnl-bg-negative { 
+        background-color: var(--danger-bg) !important; 
+      }
+      
+      /* 評分星星 */
+      .rating-star { 
+        color: var(--warning); 
+      }
+      
+      /* 趨勢指示器 */
+      .trend-up { color: var(--success); }
+      .trend-down { color: var(--danger); }
+      .trend-neutral { color: var(--neutral-400); }
+      .trend-arrow { display: inline-flex; align-items: center; gap: 4px; }
+      
+      /* 分析卡片 */
+      .analysis-card {
+        background: linear-gradient(135deg, var(--bg-accent) 0%, rgba(139, 92, 246, 0.1) 100%);
+        border-radius: var(--radius-lg);
+        padding: 16px;
+        margin: 12px 0;
+        border: 1px solid rgba(139, 92, 246, 0.2);
+      }
+      
+      /* K線圖容器 */
+      .chart-container {
+        background: var(--bg-card);
+        border-radius: var(--radius-lg);
+        padding: 16px;
+        margin-bottom: 16px;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--neutral-200);
+      }
+      
+      /* 狀態徽章 */
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: var(--radius-xl);
+        font-size: 0.85rem;
+        font-weight: 500;
+      }
+      .status-badge.online {
+        background: var(--success-bg);
+        color: var(--success);
+      }
+      .status-badge.offline {
+        background: var(--danger-bg);
+        color: var(--danger);
+      }
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+      }
+      .status-dot.online { background: var(--success); }
+      .status-dot.offline { background: var(--danger); }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+      
+      /* 行動裝置底部導航 */
+      .mobile-nav { 
+        position: fixed; 
+        bottom: 0; 
+        left: 0; 
+        right: 0; 
+        background: var(--bg-card);
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+        z-index: 1000;
+        padding: 8px;
+        backdrop-filter: blur(10px);
+      }
+      .mobile-nav .nav-link {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        font-size: 0.75rem;
+        padding: 8px;
+        border-radius: var(--radius-md);
+        transition: var(--transition);
+        color: var(--neutral-400);
+      }
+      .mobile-nav .nav-link.active {
+        color: var(--primary);
+        background: var(--primary-glow);
+      }
+      .mobile-nav .nav-link i { 
+        font-size: 1.4rem; 
+        margin-bottom: 2px;
+      }
+      
+      /* 表格優化 */
+      .table {
+        font-size: 0.9rem;
+      }
+      .table th {
+        font-weight: 600;
+        color: var(--neutral-600);
+        border-bottom-width: 2px;
+        padding: 12px 8px;
+      }
+      .table td {
+        padding: 12px 8px;
+        vertical-align: middle;
+      }
+      .table-hover tbody tr {
+        transition: var(--transition);
+      }
+      .table-hover tbody tr:hover {
+        transform: scale(1.01);
+      }
+      
+      /* 空狀態 */
+      .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--neutral-400);
+      }
+      .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 16px;
+        opacity: 0.5;
+      }
+      
+      /* 載入動畫 */
+      .loading-dots::after {
+        content: '';
+        animation: dots 1.5s infinite;
+      }
+      @keyframes dots {
+        0%, 20% { content: ''; }
+        40% { content: '.'; }
+        60% { content: '..'; }
+        80%, 100% { content: '...'; }
+      }
+      
+      /* 進度條美化 */
+      .progress {
+        border-radius: var(--radius-xl);
+        overflow: hidden;
+        background: var(--neutral-200);
+      }
+      .progress-bar {
+        background: linear-gradient(90deg, var(--primary) 0%, #8B5CF6 100%);
+        transition: width 0.5s ease;
+      }
+      
+      /* 總資產儀表板 */
+      .portfolio-card {
+        background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #A855F7 100%);
+        color: white;
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-lg), 0 0 40px rgba(139, 92, 246, 0.3);
+      }
+      .portfolio-card .text-white-50 {
+        color: rgba(255,255,255,0.7) !important;
+      }
+      .portfolio-card hr {
+        border-color: rgba(255,255,255,0.2);
+      }
+      
+      /* 徽章樣式 */
+      .badge {
+        font-weight: 500;
+        padding: 6px 10px;
+        border-radius: var(--radius-md);
+      }
+      
+      /* 趨勢指示箭頭動畫 */
+      .trend-icon {
+        display: inline-block;
+        transition: transform 0.3s ease;
+      }
+      .trend-up .trend-icon {
+        animation: bounceUp 1s infinite;
+      }
+      .trend-down .trend-icon {
+        animation: bounceDown 1s infinite;
+      }
+      @keyframes bounceUp {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-3px); }
+      }
+      @keyframes bounceDown {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(3px); }
+      }
+      
+      /* 響應式設計 */
+      @media (max-width: 768px) {
+        .container-fluid { padding: 0.75rem; }
+        .card-body { padding: 1rem; }
+        .chat-container { height: calc(100vh - 260px) !important; }
+        h4, .h4 { font-size: 1.25rem; }
+        .nav-tabs .nav-link { 
+          padding: 8px 12px; 
+          font-size: 0.85rem; 
+        }
+        .chat-bubble {
+          padding: 12px 14px;
+          font-size: 0.9rem;
+        }
+        .trade-card {
+          padding: 12px;
+        }
+        .portfolio-card .card-body { padding: 1.25rem; }
+        .portfolio-card h3 { font-size: 1.5rem !important; }
+        .portfolio-card h4 { font-size: 1.1rem !important; }
+        .portfolio-card h2 { font-size: 1.5rem !important; }
+      }
+      
+      @media (max-width: 576px) {
+        .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        .table th, .table td { 
+          padding: 0.5rem 0.25rem; 
+          font-size: 0.8rem; 
+        }
+        .chart-container { padding: 12px; }
+        #kline-chart { height: 250px !important; }
+      }
+      
+      @media (min-width: 769px) {
+        .mobile-nav { display: none; }
+        .chat-container { height: calc(100vh - 200px); }
+        .input-wrapper { bottom: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    
+    <script type="text/babel">
+      const { useState, useEffect, useRef } = React;
+      
+      const API_BASE = '/api';
+      
+      function App() {
+        const [activeTab, setActiveTab] = useState('chat');
+        const [messages, setMessages] = useState([
+          { id: 1, role: 'assistant', content: `
+            <div style="font-size:0.95rem">
+              <div style="font-weight:700;font-size:1.05rem;margin-bottom:10px">👋 你好！我是 NoFOMO</div>
+              <div style="color:#4B5563;margin-bottom:12px">告訴我你的交易，我會即時查詢股價與技術指標，並幫你記錄下來。</div>
+              <div style="background:#F3F4F6;border-radius:10px;padding:12px 14px;line-height:2.4;font-size:0.88rem">
+                <div style="color:#9CA3AF;font-size:0.8rem;margin-bottom:4px">🇺🇸 美股</div>
+                💬 「<strong>我買了 100 股 TSLA</strong>」<br>
+                💬 「<strong>分析 AAPL</strong>」<br>
+                <div style="color:#9CA3AF;font-size:0.8rem;margin:4px 0">🇹🇼 台股</div>
+                💬 「<strong>我買了 2330 1000股</strong>」<br>
+                💬 「<strong>分析 0050</strong>」<br>
+                <div style="color:#9CA3AF;font-size:0.8rem;margin:4px 0">💰 資產</div>
+                💬 「<strong>存 10萬</strong>」/「<strong>存 3000 美金</strong>」<br>
+                💬 「<strong>領 5000</strong>」<br>
+                💬 「<strong>房子 值 2500萬</strong>」
+              </div>
+            </div>` }
+        ]);
+        const [input, setInput] = useState('');
+        const [loading, setLoading] = useState(false);
+        const [trades, setTrades] = useState([]);
+        const [portfolio, setPortfolio] = useState(null);
+        const [apiStatus, setApiStatus] = useState('checking');
+        const messagesEndRef = useRef(null);
+        
+        useEffect(() => {
+          loadData();
+          // 定期檢查 API 狀態
+          const statusCheck = setInterval(checkApiStatus, 30000);
+          return () => clearInterval(statusCheck);
+        }, []);
+        
+        useEffect(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, [messages]);
+        
+        const checkApiStatus = async () => {
+          try {
+            await axios.get(`${API_BASE}/health`, { timeout: 3000 });
+            setApiStatus('online');
+          } catch (e) {
+            setApiStatus('offline');
+          }
+        };
+        
+        const loadData = async () => {
+          try {
+            const tradesRes = await axios.get(`${API_BASE}/trades`);
+            setTrades(tradesRes.data);
+            const portfolioRes = await axios.get(`${API_BASE}/portfolio/summary`);
+            setPortfolio(portfolioRes.data);
+            setApiStatus('online');
+          } catch (e) {
+            console.log('API not available');
+            setApiStatus('offline');
+          }
+        };
+        
+        const handleSend = async () => {
+          if (!input.trim() || loading) return;
+          
+          const userMessage = { id: Date.now(), role: 'user', content: input };
+          setMessages(prev => [...prev, userMessage]);
+          setInput('');
+          setLoading(true);
+          
+          try {
+            const response = await processMessage(input);
+            setMessages(prev => [...prev, { 
+              id: Date.now() + 1, 
+              role: 'assistant', 
+              content: response 
+            }]);
+          } catch (e) {
+            setMessages(prev => [...prev, { 
+              id: Date.now() + 1, 
+              role: 'assistant', 
+              content: '抱歉，處理過程中發生錯誤。請稍後再試。' 
+            }]);
+          }
+          
+          setLoading(false);
+          loadData();
+        };
+        
+        // HTML 輔助函數
+        const row = (label, value, valueStyle = '') =>
+          `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(0,0,0,0.06)">
+            <span style="color:#6B7280;font-size:0.85rem">${label}</span>
+            <span style="font-weight:500;font-size:0.9rem;${valueStyle}">${value}</span>
+          </div>`;
+
+        const section = (title, rows) =>
+          `<div style="background:#F8FAFF;border:1px solid #E8EDFF;border-radius:10px;padding:10px 14px;margin:8px 0">
+            <div style="font-weight:600;color:#4F46E5;font-size:0.85rem;margin-bottom:6px">${title}</div>
+            ${rows}
+          </div>`;
+
+        const tag = (text, bg, color) =>
+          `<span style="display:inline-flex;align-items:center;gap:3px;background:${bg};color:${color};padding:4px 10px;border-radius:20px;font-size:0.8rem;font-weight:500;margin:3px">${text}</span>`;
+
+        const trendColor = (t) => t === 'BULLISH' ? '#10B981' : t === 'BEARISH' ? '#EF4444' : '#6B7280';
+        const trendIcon  = (t) => t === 'BULLISH' ? '↑' : t === 'BEARISH' ? '↓' : '→';
+
+        const processMessage = async (msg) => {
+          const lowerMsg = msg.toLowerCase();
+          const upperMsg = msg.toUpperCase();
+
+          // ── 加密貨幣解析 ────────────────────────────────────
+          const cryptoMap = {
+            'BTC': 'BTC-USD', '比特幣': 'BTC-USD',
+            'ETH': 'ETH-USD', '以太幣': 'ETH-USD', '以太坊': 'ETH-USD',
+            'USDT': 'USDT-USD', '泰達幣': 'USDT-USD',
+            'SOL': 'SOL-USD', 'BNB': 'BNB-USD', 'XRP': 'XRP-USD', 'DOGE': 'DOGE-USD'
+          };
+          
+          let cryptoSymbol = null;
+          let cryptoDisplay = null;
+          // 簡單匹配：若句子包含關鍵字則選取（優先長詞，但這裡詞都很短）
+          for (const [key, val] of Object.entries(cryptoMap)) {
+            // 使用正規表達式確保邊界，避免 ETH 匹配到 BETH (若有)
+            // 這裡簡單用 includes，對中文夠用，英文需注意
+            if (upperMsg.includes(key)) {
+              cryptoSymbol = val;
+              cryptoDisplay = key; // 顯示使用者輸入的名稱或標準名稱
+              break;
+            }
+          }
+
+          // ── 股票代號解析 ────────────────────────────────────
+          // 優先匹配美股英文代號（大寫 1~5 字）
+          const usMatch = !cryptoSymbol && msg.match(/\b([A-Z]{1,5})\b/);
+          // 台股代號：3~6 位數字，但後面不緊跟 股/張（避免把股數誤判為代號）
+          const twMatch = !cryptoSymbol && !usMatch && msg.match(/(?<![.$])\b(\d{3,6})\b(?!\s*[股張])/);
+
+          // tickerDisplay = 顯示用（如 2330、TSLA、比特幣）
+          // tickerSymbol  = API 用（台股 .TW、加密貨幣 -USD）
+          const tickerDisplay = cryptoDisplay || usMatch?.[1] || twMatch?.[1] || null;
+          const isCrypto      = !!cryptoSymbol;
+          const isTW          = !!twMatch;
+          
+          // API Symbol
+          let tickerSymbol = null;
+          if (isCrypto) tickerSymbol = cryptoSymbol;
+          else if (isTW) tickerSymbol = `${tickerDisplay}.TW`;
+          else if (tickerDisplay) tickerSymbol = tickerDisplay;
+
+          // 股數/顆數：數字 + (股/張/顆/個)
+          const quantityMatch = msg.match(/(\d+\.?\d*)\s*[股張顆個]/);
+          // 若沒單位，嘗試抓純數字（需排除掉股票代號本身）
+          // 這裡簡化：若有 tickerMatch，則找另一個數字
+          const allNumbers = msg.match(/\d+\.?\d*/g) || [];
+          let quantityRaw = quantityMatch?.[1];
+          if (!quantityRaw && allNumbers.length > 0) {
+             // 排除掉可能是代號的數字 (如 2330)
+             for (const num of allNumbers) {
+               if (num !== twMatch?.[1]) {
+                 quantityRaw = num;
+                 break;
+               }
+             }
+          }
+          const quantity = quantityRaw || '1';
+
+          // 指定賣價：賣|@|$ 後面的數字
+          const priceMatch = msg.match(/(?:賣|sell|@|\$)\s*(\d+\.?\d*)/i);
+
+          // ── 資金存取 (存/領) ───────────────────────────────
+          const depositMatch = msg.match(/(?:存|deposit)\s*(\d+\.?\d*)/i);
+          const withdrawMatch = msg.match(/(?:領|提|withdraw)\s*(\d+\.?\d*)/i);
+          
+          if (depositMatch || withdrawMatch) {
+            const isDeposit = !!depositMatch;
+            const amount = parseFloat((depositMatch || withdrawMatch)[1]);
+            const isUSD = lowerMsg.includes('美金') || lowerMsg.includes('usd') || msg.includes('$');
+            const currency = isUSD ? 'USD' : 'TWD';
+            const action = isDeposit ? 'DEPOSIT' : 'WITHDRAW';
+            
+            try {
+              await axios.post(`${API_BASE}/trades`, {
+                date: new Date().toISOString().slice(0,16).replace('T',' '),
+                action: action,
+                amount: amount,
+                currency: currency,
+                category: 'CASH',
+                reason: msg
+              });
+              
+              const sign = currency === 'TWD' ? 'NT$' : '$';
+              const color = isDeposit ? '#10B981' : '#EF4444';
+              const icon = isDeposit ? '💰' : '💸';
+              
+              return `
+                <div style="font-size:0.95rem">
+                  <div style="font-weight:700;font-size:1rem;margin-bottom:10px;color:${color}">${icon} ${isDeposit ? '存款已記錄' : '提款已記錄'}</div>
+                  ${section('明細', 
+                    row('金額', `${sign}${amount.toLocaleString()}`, `color:${color};font-weight:700`) +
+                    row('幣別', currency) +
+                    row('說明', msg)
+                  )}
+                  <div style="font-size:0.85rem;color:#6B7280;margin-top:5px">資產餘額已更新，請至統計頁查看。</div>
+                </div>`;
+            } catch (e) {
+              return '<span style="color:#EF4444">⚠️ 無法儲存記錄</span>';
+            }
+          }
+
+          // ── 資產估值 (房子/車子...) ───────────────────────
+          // 格式：[資產名稱] 值 [金額]
+          const assetMatch = msg.match(/(.+?)\s*(?:值|value)\s*(\d+\.?\d*)/i);
+          if (assetMatch && !lowerMsg.includes('買') && !lowerMsg.includes('賣')) {
+             const assetName = assetMatch[1].replace(/資產|我的|這個/g, '').trim();
+             const amount = parseFloat(assetMatch[2]);
+             if (assetName && amount > 0) {
+               try {
+                 await axios.post(`${API_BASE}/trades`, {
+                   date: new Date().toISOString().slice(0,16).replace('T',' '),
+                   action: 'VALUATION',
+                   category: 'ASSET',
+                   asset_name: assetName,
+                   amount: amount,
+                   currency: 'TWD', // 暫定預設 TWD，未來可擴充
+                   reason: msg
+                 });
+                 
+                 return `
+                  <div style="font-size:0.95rem">
+                    <div style="font-weight:700;font-size:1rem;margin-bottom:10px;color:#4F46E5">🏠 資產估值已更新</div>
+                    ${section('資產資訊',
+                      row('項目', assetName) +
+                      row('估值', `NT$${amount.toLocaleString()}`, 'font-weight:700')
+                    )}
+                  </div>`;
+               } catch(e) {
+                 return '<span style="color:#EF4444">⚠️ 無法更新資產</span>';
+               }
+             }
+          }
+
+          // ── 買入 ──────────────────────────────────────────
+          if (lowerMsg.includes('買') || lowerMsg.includes('buy')) {
+            if (!tickerDisplay) return `
+              <div style="font-size:0.9rem;color:#374151">
+                <div style="font-weight:600;margin-bottom:8px">⚠️ 找不到股票代號</div>
+                <div style="background:#F3F4F6;border-radius:8px;padding:10px 14px;line-height:2">
+                  美股：「我買了 100 股 <strong>TSLA</strong>」<br>
+                  台股：「我買了 <strong>2330</strong> 1000股」<br>
+                  台股ETF：「我買了 <strong>0050</strong> 500股」
+                </div>
+              </div>`;
+
+            const ticker   = tickerSymbol;
+            const quantity = quantityMatch?.[1] || '1';
+
+            try {
+              const [priceRes, analysisRes] = await Promise.all([
+                axios.get(`${API_BASE}/quote?ticker=${ticker}`),
+                axios.get(`${API_BASE}/analyze?ticker=${ticker}`)
+              ]);
+              const p = priceRes.data;
+              const a = analysisRes.data;
+
+              if (p.error) return `<span style="color:#EF4444">⚠️ 無法取得 ${tickerDisplay} 的股價資料</span>`;
+
+              // 貨幣符號（台股用 NT$，美股/加密用 $）
+              const currencySign = isTW ? 'NT$' : '$';
+              const marketType = isCrypto ? 'CRYPTO' : (isTW ? 'TW' : 'US');
+
+              await axios.post(`${API_BASE}/trades`, {
+                date: new Date().toISOString().slice(0,16).replace('T',' '),
+                ticker: tickerDisplay,
+                ticker_symbol: tickerSymbol,
+                action: 'BUY',
+                entry_price: p.current_price,
+                quantity: parseFloat(quantity), // 支援小數點（加密貨幣）
+                total_value: p.current_price * parseFloat(quantity),
+                current_price: p.current_price,
+                score: a.score || 3,
+                rating: a.rating || '⭐⭐⭐',
+                suggestion: a.suggestion || '',
+                stop_loss: a.stop_loss, target_1: a.target_1, target_2: a.target_2,
+                reason: msg, rsi: a.rsi, trend: a.trend,
+                ma5: a.ma5, ma20: a.ma20, macd: a.macd,
+                market: marketType,
+                status: 'HOLDING'
+              });
+              
+              let marketTag = '';
+              if (isTW) marketTag = '<span style="background:#E0F2FE;color:#0369A1;font-size:0.75rem;padding:2px 6px;border-radius:4px;font-weight:600">台股</span>';
+              else if (isCrypto) marketTag = '<span style="background:#FEF3C7;color:#B45309;font-size:0.75rem;padding:2px 6px;border-radius:4px;font-weight:600">加密貨幣</span>';
+              else marketTag = '<span style="background:#F0FDF4;color:#166534;font-size:0.75rem;padding:2px 6px;border-radius:4px;font-weight:600">美股</span>';
+
+              return `
+                <div style="font-size:0.95rem">
+                  <div style="font-weight:700;font-size:1rem;margin-bottom:10px;color:#10B981">✅ 買入記錄已儲存</div>
+
+                  <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
+                    <span style="font-size:1.2rem;font-weight:700;color:#111">${tickerDisplay}</span>
+                    ${marketTag}
+                    <span style="color:#6B7280;font-size:0.85rem">${p.name || ''}</span>
+                    <span style="margin-left:auto;font-size:1.1rem;font-weight:700;color:#4F46E5">${currencySign}${p.current_price.toLocaleString(undefined, {maximumFractionDigits: 2})}</span>
+                  </div>
+
+                  ${section('📊 股價資訊',
+                    row('52 週低點', `${currencySign}${p.week52_low}`) +
+                    row('52 週高點', `${currencySign}${p.week52_high}`) +
+                    row('成交量', (p.volume||0).toLocaleString())
+                  )}
+
+                  ${section('📈 技術指標',
+                    row('RSI (14)', a.rsi?.toFixed(1) ?? '—',
+                        a.rsi < 30 ? 'color:#10B981' : a.rsi > 70 ? 'color:#EF4444' : '') +
+                    row('趨勢', `<span style="color:${trendColor(a.trend)}">${trendIcon(a.trend)} ${a.trend}</span>`) +
+                    row('MA5',  a.ma5  ? `${currencySign}${a.ma5.toFixed(2)}`  : '—') +
+                    row('MA20', a.ma20 ? `${currencySign}${a.ma20.toFixed(2)}` : '—') +
+                    (a.macd != null ? row('MACD', a.macd.toFixed(3)) : '')
+                  )}
+
+                  <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:2px">
+                    ${tag('🛡️ 停損 ' + currencySign + a.stop_loss, '#FEF3C7', '#92400E')}
+                    ${tag('🎯 目標1 ' + currencySign + a.target_1, '#D1FAE5', '#065F46')}
+                    ${tag('🎯 目標2 ' + currencySign + a.target_2, '#D1FAE5', '#065F46')}
+                    ${tag(a.rating + ' ' + a.suggestion, '#EDE9FE', '#5B21B6')}
+                  </div>
+                </div>`;
+
+            } catch (e) {
+              return '<span style="color:#EF4444">⚠️ 無法連接伺服器，請稍後再試</span>';
+            }
+          }
+
+          // ── 賣出 ──────────────────────────────────────────
+          if (lowerMsg.includes('賣') || lowerMsg.includes('sell')) {
+            if (!tickerDisplay) return `
+              <div style="font-size:0.9rem;color:#374151">
+                <div style="font-weight:600;margin-bottom:8px">⚠️ 找不到股票代號</div>
+                <div style="background:#F3F4F6;border-radius:8px;padding:10px 14px;line-height:2">
+                  美股：「我賣了 50 股 <strong>TSLA</strong>」<br>
+                  台股：「我賣了 <strong>2330</strong> 500股」
+                </div>
+              </div>`;
+
+            const ticker      = tickerSymbol;
+            const quantity    = quantityMatch?.[1] || '1';
+            const manualPrice = priceMatch ? parseFloat(priceMatch[1]) : null;
+            const currencySign = isTW ? 'NT$' : '$';
+            const marketType = isCrypto ? 'CRYPTO' : (isTW ? 'TW' : 'US');
+
+            try {
+              const priceRes = await axios.get(`${API_BASE}/quote?ticker=${ticker}`);
+              const p = priceRes.data;
+              if (p.error) return `<span style="color:#EF4444">⚠️ 無法取得 ${tickerDisplay} 的股價資料</span>`;
+
+              const sellPrice = manualPrice || p.current_price;
+              const total = (sellPrice * parseFloat(quantity)).toFixed(2);
+
+              await axios.post(`${API_BASE}/trades`, {
+                date: new Date().toISOString().slice(0,16).replace('T',' '),
+                ticker: tickerDisplay,
+                ticker_symbol: ticker,
+                action: 'SELL',
+                entry_price: sellPrice,
+                quantity: parseFloat(quantity),
+                total_value: parseFloat(total),
+                market: marketType,
+                reason: msg, status: 'CLOSED'
+              });
+              
+              let marketTag = '';
+              if (isTW) marketTag = '<span style="background:#E0F2FE;color:#0369A1;font-size:0.75rem;padding:2px 6px;border-radius:4px;font-weight:600">台股</span>';
+              else if (isCrypto) marketTag = '<span style="background:#FEF3C7;color:#B45309;font-size:0.75rem;padding:2px 6px;border-radius:4px;font-weight:600">加密貨幣</span>';
+              else marketTag = '<span style="background:#F0FDF4;color:#166534;font-size:0.75rem;padding:2px 6px;border-radius:4px;font-weight:600">美股</span>';
+
+              return `
+                <div style="font-size:0.95rem">
+                  <div style="font-weight:700;font-size:1rem;margin-bottom:10px;color:#EF4444">🔴 賣出記錄已儲存</div>
+
+                  <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
+                    <span style="font-size:1.2rem;font-weight:700;color:#111">${tickerDisplay}</span>
+                    ${marketTag}
+                    <span style="color:#6B7280;font-size:0.85rem">${p.name || ''}</span>
+                  </div>
+
+                  ${section('💰 成交明細',
+                    row('賣出價格', `${currencySign}${sellPrice.toFixed(2)}`) +
+                    row('賣出股數', `${quantity} 股`) +
+                    row('成交總額', `${currencySign}${total}`, 'color:#EF4444;font-weight:700')
+                  )}
+
+                  <div style="margin-top:8px;color:#6B7280;font-size:0.85rem">此筆交易已平倉，損益將反映在統計頁。</div>
+                </div>`;
+
+            } catch (e) {
+              return '<span style="color:#EF4444">⚠️ 無法連接伺服器</span>';
+            }
+          }
+
+          // ── 查詢分析 ──────────────────────────────────────
+          if (tickerDisplay && (lowerMsg.includes('股價') || lowerMsg.includes('分析') || lowerMsg.includes('多少') || lowerMsg.includes('看') || lowerMsg.includes('查'))) {
+            const currencySign = isTW ? 'NT$' : '$';
+            try {
+              const [priceRes, analysisRes] = await Promise.all([
+                axios.get(`${API_BASE}/quote?ticker=${tickerSymbol}`),
+                axios.get(`${API_BASE}/analyze?ticker=${tickerSymbol}`)
+              ]);
+              const p = priceRes.data;
+              const a = analysisRes.data;
+              if (p.error) return `<span style="color:#EF4444">⚠️ 無法取得 ${tickerDisplay} 的資料</span>`;
+
+              let marketTag = '';
+              if (isTW) marketTag = '<span style="background:#E0F2FE;color:#0369A1;font-size:0.75rem;padding:2px 6px;border-radius:4px;font-weight:600">台股</span>';
+              else if (isCrypto) marketTag = '<span style="background:#FEF3C7;color:#B45309;font-size:0.75rem;padding:2px 6px;border-radius:4px;font-weight:600">加密貨幣</span>';
+              else marketTag = '<span style="background:#F0FDF4;color:#166534;font-size:0.75rem;padding:2px 6px;border-radius:4px;font-weight:600">美股</span>';
+
+              return `
+                <div style="font-size:0.95rem">
+                  <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px">
+                    <span style="font-size:1.2rem;font-weight:700;color:#111">${tickerDisplay}</span>
+                    ${marketTag}
+                    <span style="color:#6B7280;font-size:0.85rem">${p.name || ''}</span>
+                    <span style="margin-left:auto;font-size:1.1rem;font-weight:700;color:#4F46E5">${currencySign}${p.current_price.toLocaleString(undefined, {maximumFractionDigits: 2})}</span>
+                  </div>
+
+                  ${section('📊 股價資訊',
+                    row('52 週低點', `${currencySign}${p.week52_low}`) +
+                    row('52 週高點', `${currencySign}${p.week52_high}`) +
+                    row('成交量', (p.volume||0).toLocaleString())
+                  )}
+
+                  ${section('📈 技術指標',
+                    row('RSI (14)', a.rsi?.toFixed(1) ?? '—',
+                        a.rsi < 30 ? 'color:#10B981' : a.rsi > 70 ? 'color:#EF4444' : '') +
+                    row('趨勢', `<span style="color:${trendColor(a.trend)}">${trendIcon(a.trend)} ${a.trend}</span>`) +
+                    row('MA5',  a.ma5  ? `${currencySign}${a.ma5.toFixed(2)}`  : '—') +
+                    row('MA20', a.ma20 ? `${currencySign}${a.ma20.toFixed(2)}` : '—') +
+                    (a.macd != null ? row('MACD', a.macd.toFixed(3)) : '')
+                  )}
+
+                  ${section('💡 操作建議',
+                    row('停損位', `${currencySign}${a.stop_loss}`, 'color:#EF4444') +
+                    row('目標1',  `${currencySign}${a.target_1}`, 'color:#10B981') +
+                    row('目標2',  `${currencySign}${a.target_2}`, 'color:#10B981')
+                  )}
+
+                  <div style="margin-top:8px">
+                    ${tag(a.rating + ' ' + a.suggestion, '#EDE9FE', '#5B21B6')}
+                  </div>
+                </div>`;
+
+            } catch (e) {
+              return '<span style="color:#EF4444">⚠️ 無法取得資料</span>';
+            }
+          }
+
+          return `
+            <div style="font-size:0.9rem;color:#374151">
+              <div style="font-weight:600;margin-bottom:8px">📝 可以這樣跟我說：</div>
+              <div style="background:#F3F4F6;border-radius:8px;padding:10px 14px;line-height:2">
+                • 「我買了 100 股 TSLA」<br>
+                • 「我賣了 50 股 NVDA 賣價 500」<br>
+                • 「AAPL 股價多少」<br>
+                • 「分析 MSFT」
+              </div>
+            </div>`;
+        };
+        
+        return (
+          <div className="container-fluid py-3">
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <h4 className="app-header mb-0">📈 NoFOMO</h4>
+              <div className={`status-badge ${apiStatus}`}>
+                <span className={`status-dot ${apiStatus}`}></span>
+                {apiStatus === 'online' ? '連線中' : apiStatus === 'checking' ? '檢查中...' : '離線'}
+              </div>
+            </div>
+            
+            <ul className="nav nav-tabs mb-3">
+              <li className="nav-item">
+                <button className={`nav-link ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => setActiveTab('chat')}>
+                  <i className="bi bi-chat-dots me-1"></i> 對話
+                </button>
+              </li>
+              <li className="nav-item">
+                <button className={`nav-link ${activeTab === 'trades' ? 'active' : ''}`} onClick={() => setActiveTab('trades')}>
+                  <i className="bi bi-journal-text me-1"></i> 日誌 <span className="badge bg-secondary ms-1" style={{fontSize:'0.7rem'}}>{trades.length}</span>
+                </button>
+              </li>
+              <li className="nav-item">
+                <button className={`nav-link ${activeTab === 'stats' ? 'active' : ''}`} onClick={() => setActiveTab('stats')}>
+                  <i className="bi bi-pie-chart me-1"></i> 統計
+                </button>
+              </li>
+            </ul>
+            
+            <div className="tab-content">
+              {activeTab === 'chat' && (
+                <ChatTab 
+                  messages={messages} 
+                  input={input} 
+                  setInput={setInput} 
+                  handleSend={handleSend}
+                  loading={loading}
+                  messagesEndRef={messagesEndRef}
+                />
+              )}
+              {activeTab === 'trades' && <TradesTab trades={trades} />}
+              {activeTab === 'stats' && <StatsTab trades={trades} portfolio={portfolio} />}
+            </div>
+            
+            {/* 行動裝置底部導航 */}
+            <div className="mobile-nav d-md-none">
+              <ul className="nav justify-content-around">
+                <li className="nav-item">
+                  <button 
+                    className={`nav-link ${activeTab === 'chat' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('chat')}
+                  >
+                    <i className="bi bi-chat-dots"></i>
+                    <span>對話</span>
+                  </button>
+                </li>
+                <li className="nav-item">
+                  <button 
+                    className={`nav-link ${activeTab === 'trades' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('trades')}
+                  >
+                    <i className="bi bi-journal-text"></i>
+                    <span>日誌</span>
+                  </button>
+                </li>
+                <li className="nav-item">
+                  <button 
+                    className={`nav-link ${activeTab === 'stats' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('stats')}
+                  >
+                    <i className="bi bi-pie-chart"></i>
+                    <span>統計</span>
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </div>
+        );
+      }
+      
+      function ChatTab({ messages, input, setInput, handleSend, loading, messagesEndRef }) {
+        return (
+          <div>
+            <div className="chat-container bg-white rounded p-3 mb-2" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+              {messages.map(msg => (
+                <div key={msg.id} className={`d-flex ${msg.role === 'user' ? 'justify-content-end' : 'justify-content-start'}`}>
+                  {msg.role === 'assistant' ? (
+                    <div className="chat-bubble assistant" dangerouslySetInnerHTML={{ __html: msg.content }} />
+                  ) : (
+                    <div className="chat-bubble user">{msg.content}</div>
+                  )}
+                </div>
+              ))}
+              {loading && (
+                <div className="d-flex justify-content-start">
+                  <div className="chat-bubble assistant">
+                    <span className="loading-dots">分析中</span>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+            
+            <div className="input-wrapper">
+              <div className="input-group">
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  placeholder="輸入你的交易，例如：我買了 100 股 TSLA"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                />
+                <button className="btn btn-primary" onClick={handleSend} disabled={loading}>
+                  {loading ? <span className="spinner-border spinner-border-sm"></span> : <><i className="bi bi-send me-1"></i>發送</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+      
+      function TradesTab({ trades }) {
+        if (!trades || trades.length === 0) {
+          return (
+            <div className="empty-state">
+              <i className="bi bi-journal-text"></i>
+              <p className="mt-3 mb-1" style={{ fontSize: '1.1rem', color: 'var(--neutral-600)' }}>尚無交易記錄</p>
+              <p style={{ fontSize: '0.9rem' }}>到「對話」頁面告訴我你的第一筆交易！</p>
+            </div>
+          );
+        }
+        
+        return (
+          <div>
+            {trades.slice(0, 20).map((trade, idx) => (
+              <div key={idx} className={`trade-card ${trade.action?.toLowerCase()}`}>
+                <div className="d-flex justify-content-between align-items-start">
+                  <div>
+                    <h6 className="mb-1">
+                      {trade.action === 'BUY' ? '🟢 買入' : '🔴 賣出'} {trade.ticker}
+                    </h6>
+                    <small className="text-muted">{trade.date}</small>
+                  </div>
+                  <div className="text-end">
+                    <div className="fw-bold">${trade.entry_price?.toFixed(2)}</div>
+                    <small className="text-muted">{trade.quantity} 股</small>
+                  </div>
+                </div>
+                
+                {trade.rating && (
+                  <div className="mt-2">
+                    <span className="rating-star">{trade.rating}</span>
+                    {trade.suggestion && <span className="ms-2 text-muted">{trade.suggestion}</span>}
+                  </div>
+                )}
+                
+                {trade.rsi && (
+                  <div className="mt-2 small text-muted">
+                    RSI: {trade.rsi.toFixed(1)} | 趨勢: {trade.trend}
+                  </div>
+                )}
+                
+                {(trade.stop_loss || trade.target_1) && (
+                  <div className="mt-2 d-flex gap-2 flex-wrap">
+                    {trade.stop_loss && <span className="badge bg-warning text-dark"><i className="bi bi-shield-check me-1"></i>停損 ${trade.stop_loss}</span>}
+                    {trade.target_1 && <span className="badge bg-success"><i className="bi bi-bullseye me-1"></i>目標 ${trade.target_1}</span>}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        );
+      }
+      
+      function StatsTab({ trades, portfolio }) {
+        const [selectedTicker, setSelectedTicker] = useState(null);
+        const [currency, setCurrency]   = useState('TWD');
+        const [rates, setRates]         = useState({ TWD: 1, USD: 32 });
+        const [fxLoading, setFxLoading] = useState(false);
+        const [chartPeriod, setChartPeriod] = useState('3mo');
+        const [chartError, setChartError] = useState('');
+
+        // 取得即時匯率
+        useEffect(() => {
+          setFxLoading(true);
+          axios.get(`${API_BASE}/exchange-rate`)
+            .then(r => {
+              if (r.data.rates) setRates(r.data.rates);
+            })
+            .catch(() => {})
+            .finally(() => setFxLoading(false));
+        }, []);
+
+        // 載入 K 線圖
+        useEffect(() => {
+          if (selectedTicker) {
+            loadChart(selectedTicker, chartPeriod);
+          }
+        }, [selectedTicker, chartPeriod]);
+
+        const loadChart = async (ticker, period = chartPeriod) => {
+          setChartError('');
+          try {
+            const res = await axios.get(`${API_BASE}/history?ticker=${ticker}&period=${period}`);
+            const rows = res.data?.data;
+            if (!rows || rows.length === 0) {
+              setChartError('無歷史資料');
+              return;
+            }
+
+            const dates  = rows.map(d => d.date);
+            const opens  = rows.map(d => d.open);
+            const highs  = rows.map(d => d.high);
+            const lows   = rows.map(d => d.low);
+            const closes = rows.map(d => d.close);
+            const volumes = rows.map(d => d.volume);
+
+            const candleTrace = {
+              type: 'candlestick',
+              x: dates,
+              open: opens, high: highs, low: lows, close: closes,
+              name: ticker,
+              increasing: { line: { color: '#10B981' }, fillcolor: 'rgba(16,185,129,0.8)' },
+              decreasing: { line: { color: '#EF4444' }, fillcolor: 'rgba(239,68,68,0.8)' }
+            };
+
+            const volColors = closes.map((c, i) =>
+              i > 0 && c >= closes[i - 1] ? 'rgba(16,185,129,0.5)' : 'rgba(239,68,68,0.5)'
+            );
+            const volTrace = {
+              type: 'bar', x: dates, y: volumes,
+              name: '成交量',
+              marker: { color: volColors },
+              yaxis: 'y2'
+            };
+
+            const layout = {
+              responsive: true,
+              margin: { t: 10, r: 20, b: 40, l: 60 },
+              paper_bgcolor: 'rgba(0,0,0,0)',
+              plot_bgcolor: 'rgba(0,0,0,0)',
+              showlegend: false,
+              xaxis: {
+                rangeslider: { visible: false },
+                type: 'date',
+                gridcolor: '#F3F4F6'
+              },
+              yaxis: {
+                title: '價格 (USD)',
+                gridcolor: '#F3F4F6',
+                domain: [0.25, 1]
+              },
+              yaxis2: {
+                title: '成交量',
+                gridcolor: '#F3F4F6',
+                domain: [0, 0.2],
+                showticklabels: false
+              }
+            };
+
+            Plotly.react('kline-chart', [candleTrace, volTrace], layout, { displayModeBar: false });
+          } catch (e) {
+            console.error('Chart error:', e);
+            setChartError('載入失敗：' + (e.response?.data?.error || e.message));
+          }
+        };
+
+        const convert = (amount, sourceCurrency) => {
+          if (!amount) return 0;
+          let src = sourceCurrency || 'USD';
+          if (src === 'US' || src === 'CRYPTO') src = 'USD';
+          if (src === 'TW') src = 'TWD';
+          
+          const rateToTwd = rates[src] || (src === 'USD' ? 32 : 1); 
+          const amountInTwd = amount * rateToTwd;
+
+          if (currency === 'TWD') return amountInTwd;
+          const usdToTwd = rates['USD'] || 32;
+          return amountInTwd / usdToTwd;
+        };
+
+        const sign = currency === 'TWD' ? 'NT$' : '$';
+        const fmt  = (n) => {
+           if (n === undefined || n === null) return '-';
+           const absN = Math.abs(n);
+           const prefix = n < 0 ? '-' : '';
+           const decimals = (currency === 'TWD' || currency === 'JPY' || currency === 'KRW') ? 0 : 2;
+           return prefix + sign + absN.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+        };
+
+        const positions = portfolio?.positions || [];
+        const convertedPositions = positions.map(pos => {
+          let posCurrency = 'USD';
+          if (pos.market === 'TW') posCurrency = 'TWD';
+          else if (pos.market === 'JP') posCurrency = 'JPY';
+          else if (pos.market === 'HK') posCurrency = 'HKD';
+          else if (pos.market === 'KR') posCurrency = 'KRW';
+          else if (pos.market === 'VN') posCurrency = 'VND';
+          else if (pos.market === 'CRYPTO') posCurrency = 'USD';
+
+          const v = convert(pos.value, posCurrency);
+          const c = convert(pos.cost, posCurrency);
+          const ap = convert(pos.avg_price, posCurrency);
+          const cp = convert(pos.current_price, posCurrency);
+          const pnl = v - c;
+          const pnl_pct = c > 0 ? (pnl / c * 100) : 0;
+          return { ...pos, value: v, cost: c, avg_price: ap, current_price: cp, pnl, pnl_pct, rawCurrency: posCurrency };
+        });
+
+        const stockValue  = convertedPositions.filter(p => p.market !== 'CRYPTO').reduce((s, p) => s + p.value, 0);
+        const cryptoValue = convertedPositions.filter(p => p.market === 'CRYPTO').reduce((s, p) => s + p.value, 0);
+        
+        const cashBalances = portfolio?.cash_balances || {};
+        let totalCash = 0;
+        Object.entries(cashBalances).forEach(([curr, amount]) => {
+            totalCash += convert(amount, curr);
+        });
+        
+        const otherAssets = portfolio?.other_assets || [];
+        const otherAssetsValue = otherAssets.reduce((sum, a) => sum + convert(a.value, a.currency), 0);
+
+        const totalAssets = stockValue + cryptoValue + totalCash + otherAssetsValue;
+        
+        const totalInvestCost = convertedPositions.reduce((s, p) => s + p.cost, 0);
+        const totalInvestValue = stockValue + cryptoValue;
+        const totalPnl = totalInvestValue - totalInvestCost;
+        const totalPnlPct = totalInvestCost > 0 ? (totalPnl / totalInvestCost * 100) : 0;
+
+        useEffect(() => {
+          if (totalAssets > 0) {
+            const values = [stockValue, cryptoValue, totalCash, otherAssetsValue];
+            const labels = ['股票', '加密貨幣', '現金', '其他資產'];
+            const colors = ['#6366F1', '#F59E0B', '#10B981', '#8B5CF6'];
+            
+            const finalValues = [];
+            const finalLabels = [];
+            const finalColors = [];
+            values.forEach((v, i) => {
+              if (v > 0) {
+                finalValues.push(v);
+                finalLabels.push(labels[i]);
+                finalColors.push(colors[i]);
+              }
+            });
+            
+            const data = [{
+              values: finalValues,
+              labels: finalLabels,
+              type: 'pie',
+              hole: 0.6,
+              marker: { colors: finalColors },
+              textinfo: 'label+percent',
+              hoverinfo: 'label+value',
+              textposition: 'outside',
+              automargin: true
+            }];
+            
+            const layout = {
+              height: 250,
+              margin: { t: 10, b: 10, l: 10, r: 10 },
+              showlegend: false,
+              paper_bgcolor: 'rgba(0,0,0,0)',
+            };
+            
+            Plotly.newPlot('asset-pie-chart', data, layout, { displayModeBar: false });
+          }
+        }, [stockValue, cryptoValue, totalCash, otherAssetsValue, currency]);
+
+        const trend = totalPnl >= 0 ? 'up' : 'down';
+        const pnlClass = totalPnl >= 0 ? 'text-success' : 'text-danger';
+        
+        const totalTrades = trades?.length || 0;
+        const buyCount = trades?.filter(t => t.action === 'BUY').length || 0;
+        const sellCount = trades?.filter(t => t.action === 'SELL').length || 0;
+        const scoreCounts = trades?.reduce((acc, t) => {
+          const score = t.score || 3;
+          acc[score] = (acc[score] || 0) + 1;
+          return acc;
+        }, {}) || {};
+
+        return (
+          <div>
+            <div className="d-flex justify-content-end align-items-center mb-2 gap-2">
+              {fxLoading
+                ? <span className="text-muted small">匯率載入中…</span>
+                : <span className="text-muted small" title="參考匯率">1 USD ≈ {rates['USD']} TWD</span>
+              }
+              <div className="btn-group btn-group-sm" role="group">
+                <button
+                  type="button"
+                  className={`btn ${currency === 'TWD' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                  style={{ fontSize: '0.8rem', padding: '3px 10px' }}
+                  onClick={() => setCurrency('TWD')}
+                >🇹🇼 TWD</button>
+                <button
+                  type="button"
+                  className={`btn ${currency === 'USD' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                  style={{ fontSize: '0.8rem', padding: '3px 10px' }}
+                  onClick={() => setCurrency('USD')}
+                >🇺🇸 USD</button>
+              </div>
+            </div>
+
+            <div className="card portfolio-card mb-4">
+              <div className="card-body">
+                <div className="row text-center mb-3">
+                  <div className="col-12">
+                    <div className="text-white-50 small">淨資產總額</div>
+                    <h1 className="mb-0 fw-bold" style={{ fontSize: '2.5rem' }}>{fmt(totalAssets)}</h1>
+                  </div>
+                </div>
+                
+                <div className="row text-center">
+                  <div className="col-3 border-end border-white-50" style={{ padding: '0 5px' }}>
+                    <div className="text-white-50 small">股票</div>
+                    <h5 className="mb-0">{fmt(stockValue)}</h5>
+                  </div>
+                  <div className="col-3 border-end border-white-50" style={{ padding: '0 5px' }}>
+                    <div className="text-white-50 small">Crypto</div>
+                    <h5 className="mb-0">{fmt(cryptoValue)}</h5>
+                  </div>
+                  <div className="col-3 border-end border-white-50" style={{ padding: '0 5px' }}>
+                    <div className="text-white-50 small">現金</div>
+                    <h5 className="mb-0">{fmt(totalCash)}</h5>
+                  </div>
+                  <div className="col-3" style={{ padding: '0 5px' }}>
+                    <div className="text-white-50 small">其他</div>
+                    <h5 className="mb-0">{fmt(otherAssetsValue)}</h5>
+                  </div>
+                </div>
+                <hr />
+                <div className="text-center">
+                  <div className="text-white-50 small">投資總損益</div>
+                  <h2 className={`mb-0 ${pnlClass}`} style={{ textShadow: '0 2px 10px rgba(0,0,0,0.2)' }}>
+                    {totalPnl >= 0 ? '+' : ''}{fmt(totalPnl)} ({totalPnlPct.toFixed(2)}%)
+                    <span className={`trend-icon ms-2 ${trend === 'up' ? 'text-white' : ''}`} style={{ fontSize: '1.2rem' }}>
+                      {trend === 'up' ? <i className="bi bi-graph-up-arrow"></i> : <i className="bi bi-graph-down-arrow"></i>}
+                    </span>
+                  </h2>
+                </div>
+              </div>
+            </div>
+
+            {totalAssets > 0 && (
+              <div className="card mb-4">
+                <div className="card-body">
+                  <h6 className="card-title mb-0"><i className="bi bi-pie-chart me-2"></i>資產配置</h6>
+                  <div id="asset-pie-chart"></div>
+                </div>
+              </div>
+            )}
+
+            {otherAssets.length > 0 && (
+              <div className="card mb-4">
+                <div className="card-header bg-transparent">
+                  <h6 className="mb-0"><i className="bi bi-house-door me-2"></i>其他資產</h6>
+                </div>
+                <div className="table-responsive">
+                  <table className="table table-hover mb-0">
+                    <tbody>
+                      {otherAssets.map((asset, idx) => (
+                        <tr key={idx}>
+                          <td>{asset.name}</td>
+                          <td className="text-end fw-bold">{fmt(convert(asset.value, asset.currency))}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {convertedPositions.length > 0 && (
+              <div className="chart-container mb-4">
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <h6 className="mb-0"><i className="bi bi-candles me-2"></i>K 線圖</h6>
+                  <div className="d-flex gap-2">
+                    <select
+                      className="form-select form-select-sm"
+                      style={{ width: 'auto' }}
+                      value={chartPeriod}
+                      onChange={(e) => {
+                        setChartPeriod(e.target.value);
+                        if (selectedTicker) loadChart(selectedTicker, e.target.value);
+                      }}
+                    >
+                      {['1mo','3mo','6mo','1y','2y'].map(p => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
+                    <select
+                      className="form-select form-select-sm"
+                      style={{ width: 'auto' }}
+                      value={selectedTicker || ''}
+                      onChange={(e) => {
+                        setSelectedTicker(e.target.value);
+                        if (e.target.value) loadChart(e.target.value, chartPeriod);
+                      }}
+                    >
+                      <option value="">選擇股票...</option>
+                      {convertedPositions.map(pos => (
+                        <option key={pos.ticker} value={pos.ticker_symbol || pos.ticker}>{pos.ticker}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {chartError && (
+                  <div className="alert alert-danger py-2 small">{chartError}</div>
+                )}
+
+                {selectedTicker ? (
+                  <div id="kline-chart" style={{ height: '380px', width: '100%' }}></div>
+                ) : (
+                  <div className="empty-state py-4">
+                    <i className="bi bi-candles" style={{ fontSize: '2.5rem', opacity: 0.3 }}></i>
+                    <p className="mt-2 mb-0" style={{ color: '#9CA3AF' }}>選擇股票查看 K 線圖</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {convertedPositions.length > 0 && (
+              <div className="card mb-4">
+                <div className="card-header bg-transparent d-flex justify-content-between align-items-center">
+                  <h6 className="mb-0"><i className="bi bi-list-ul me-2"></i>持股明細</h6>
+                  <small className="text-muted">金額單位：{currency}</small>
+                </div>
+                <div className="card-body p-0">
+                  <div className="table-responsive">
+                    <table className="table table-hover mb-0">
+                      <thead>
+                        <tr>
+                          <th>股票</th>
+                          <th className="text-end">股數</th>
+                          <th className="text-end">成本均價</th>
+                          <th className="text-end">現價</th>
+                          <th className="text-end">市值</th>
+                          <th className="text-end">損益</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {convertedPositions.map((pos, idx) => {
+                          const isPositive = pos.pnl >= 0;
+                          
+                          let marketStyle = { text: '美', bg: '#F3F4F6', c: '#374151' };
+                          if (pos.market === 'TW') marketStyle = { text: '台', bg: '#E0F2FE', c: '#0369A1' };
+                          else if (pos.market === 'JP') marketStyle = { text: '日', bg: '#FCE7F3', c: '#9D174D' };
+                          else if (pos.market === 'HK') marketStyle = { text: '港', bg: '#FEE2E2', c: '#991B1B' };
+                          else if (pos.market === 'KR') marketStyle = { text: '韓', bg: '#E0E7FF', c: '#3730A3' };
+                          else if (pos.market === 'VN') marketStyle = { text: '越', bg: '#DCFCE7', c: '#166534' };
+                          else if (pos.market === 'CRYPTO') marketStyle = { text: '幣', bg: '#FEF3C7', c: '#B45309' };
+
+                          return (
+                            <tr key={idx} className={isPositive ? 'pnl-bg-positive' : 'pnl-bg-negative'} style={{ opacity: 0.9 }}>
+                              <td>
+                                <strong>{pos.ticker}</strong>
+                                <span style={{ fontSize: '0.7rem', marginLeft: '4px',
+                                  background: marketStyle.bg,
+                                  color:      marketStyle.c,
+                                  padding: '1px 5px', borderRadius: '3px'
+                                }}>{marketStyle.text}</span>
+                              </td>
+                              <td className="text-end">{pos.quantity.toLocaleString()}</td>
+                              <td className="text-end">{fmt(pos.avg_price)}</td>
+                              <td className="text-end">{fmt(pos.current_price)}</td>
+                              <td className="text-end">{fmt(pos.value)}</td>
+                              <td className={`text-end ${isPositive ? 'pnl-positive' : 'pnl-negative'}`}>
+                                {isPositive ? '+' : ''}{fmt(pos.pnl)}
+                                <small className="d-block">{isPositive ? '+' : ''}{pos.pnl_pct?.toFixed(1)}%</small>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="row g-3 mb-4 stats-grid">
+              <div className="col-6">
+                <div className="card text-center h-100">
+                  <div className="card-body">
+                    <h3 className="mb-0 text-primary">{totalTrades}</h3>
+                    <small className="text-muted">總交易次數</small>
+                  </div>
+                </div>
+              </div>
+              <div className="col-6">
+                <div className="card text-center h-100">
+                  <div className="card-body">
+                    <h3 className="mb-0" style={{ color: 'var(--success)' }}>{buyCount}</h3>
+                    <small className="text-muted">買入次數</small>
+                  </div>
+                </div>
+              </div>
+              <div className="col-6">
+                <div className="card text-center h-100">
+                  <div className="card-body">
+                    <h3 className="mb-0" style={{ color: 'var(--danger)' }}>{sellCount}</h3>
+                    <small className="text-muted">賣出次數</small>
+                  </div>
+                </div>
+              </div>
+              <div className="col-6">
+                <div className="card text-center h-100">
+                  <div className="card-body">
+                    <h3 className="mb-0">{portfolio?.positions?.length || 0}</h3>
+                    <small className="text-muted">目前持股</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-header bg-transparent">
+                <h6 className="mb-0"><i className="bi bi-star me-2"></i>進場品質分布</h6>
+              </div>
+              <div className="card-body">
+                {[5,4,3,2,1].map(score => (
+                  <div key={score} className="d-flex align-items-center mb-3">
+                    <span className="me-2" style={{ width: '70px' }}>{'⭐'.repeat(score)}</span>
+                    <div className="flex-grow-1">
+                      <div className="progress" style={{ height: '10px' }}>
+                        <div className="progress-bar" style={{ width: `${totalTrades ? (scoreCounts[score] / totalTrades * 100) : 0}%` }}></div>
+                      </div>
+                    </div>
+                    <span className="ms-2 text-muted" style={{ width: '30px' }}>{scoreCounts[score] || 0}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      }
+      
+      ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+  </body>
+</html>
