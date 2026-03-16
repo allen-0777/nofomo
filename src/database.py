@@ -16,3 +16,23 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def migrate_review_columns():
+    """Add NoFOMO review columns to trades table if they don't exist."""
+    review_columns = [
+        ("motivation", "TEXT"),
+        ("emotion", "TEXT"),
+        ("lesson", "TEXT"),
+        ("next_action", "TEXT"),
+        ("reviewed_at", "DATETIME"),
+    ]
+    with engine.connect() as conn:
+        existing = {row[1] for row in conn.execute(
+            __import__('sqlalchemy').text("PRAGMA table_info(trades)")
+        )}
+        for col_name, col_type in review_columns:
+            if col_name not in existing:
+                conn.execute(__import__('sqlalchemy').text(
+                    f"ALTER TABLE trades ADD COLUMN {col_name} {col_type}"
+                ))
+        conn.commit()

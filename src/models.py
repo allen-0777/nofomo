@@ -47,6 +47,13 @@ class Trade(Base):
     target_1 = Column(Float, nullable=True)
     target_2 = Column(Float, nullable=True)
 
+    # Post-trade Review (NoFOMO)
+    motivation = Column(String, nullable=True)   # 計劃布局/突破追買/看別人買/聽消息/其他
+    emotion = Column(String, nullable=True)      # 冷靜/有點急/非常FOMO
+    lesson = Column(Text, nullable=True)         # 學到什麼
+    next_action = Column(Text, nullable=True)    # 下次怎麼做
+    reviewed_at = Column(DateTime, nullable=True)
+
 class Settings(Base):
     __tablename__ = "settings"
     

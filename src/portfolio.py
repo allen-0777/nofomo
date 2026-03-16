@@ -44,6 +44,12 @@ def to_dict(trade: Trade) -> Dict:
         'stop_loss': trade.stop_loss,
         'target_1': trade.target_1,
         'target_2': trade.target_2,
+        # NoFOMO review fields
+        'motivation': trade.motivation,
+        'emotion': trade.emotion,
+        'lesson': trade.lesson,
+        'next_action': trade.next_action,
+        'reviewed_at': trade.reviewed_at.isoformat() if trade.reviewed_at else None,
     }
 
 def get_all_trades() -> List[Dict]:
@@ -53,6 +59,28 @@ def get_all_trades() -> List[Dict]:
         # 依 created_at 倒序排列 (新到舊)
         trades = db.query(Trade).order_by(Trade.created_at.desc()).all()
         return [to_dict(t) for t in trades]
+    finally:
+        db.close()
+
+def review_trade(trade_id: str, review_data: Dict) -> bool:
+    """儲存交易復盤資料"""
+    db = SessionLocal()
+    try:
+        trade = db.query(Trade).filter(Trade.id == trade_id).first()
+        if not trade:
+            return False
+        trade.motivation = review_data.get('motivation', trade.motivation)
+        trade.emotion = review_data.get('emotion', trade.emotion)
+        trade.lesson = review_data.get('lesson', trade.lesson)
+        trade.next_action = review_data.get('next_action', trade.next_action)
+        trade.reviewed_at = datetime.now()
+        db.commit()
+        logger.info(f"Trade reviewed: {trade_id}")
+        return True
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to review trade: {e}")
+        return False
     finally:
         db.close()
 
@@ -481,13 +509,42 @@ def get_trade_statistics() -> Dict:
         ticker_stats[ticker]['total'] += 1
 
     recent = trades[:5]
-    
+
+    # FOMO statistics (from reviewed BUY trades)
+    reviewed_buys = [t for t in buy_trades if t.get('reviewed_at')]
+    motivation_dist: Dict[str, int] = {}
+    emotion_dist: Dict[str, int] = {}
+    fomo_trades = []
+    planned_trades = []
+    for t in reviewed_buys:
+        m = t.get('motivation') or '其他'
+        e = t.get('emotion') or '冷靜'
+        motivation_dist[m] = motivation_dist.get(m, 0) + 1
+        emotion_dist[e] = emotion_dist.get(e, 0) + 1
+        if e == '非常FOMO':
+            fomo_trades.append(t)
+        elif e == '冷靜':
+            planned_trades.append(t)
+
+    def avg_pnl(trade_list):
+        vals = [t.get('amount') or 0 for t in trade_list if t.get('amount')]
+        return round(sum(vals) / len(vals), 2) if vals else 0
+
+    fomo_stats = {
+        'reviewed_count': len(reviewed_buys),
+        'fomo_count': len(fomo_trades),
+        'fomo_rate': round(len(fomo_trades) / len(reviewed_buys) * 100, 1) if reviewed_buys else 0,
+        'motivation_distribution': motivation_dist,
+        'emotion_distribution': emotion_dist,
+    }
+
     return {
         'total_trades': len(trades),
         'buy_count': len(buy_trades),
         'sell_count': len(sell_trades),
         'by_ticker': ticker_stats,
         'recent_trades': recent,
+        'fomo_stats': fomo_stats,
         'timestamp': datetime.now().isoformat()
     }
 

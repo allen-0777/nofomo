@@ -240,6 +240,39 @@
       .trade-card .delete-btn:hover {
         color: var(--danger);
       }
+      .review-form {
+        background: var(--bg-accent);
+        border-radius: 10px;
+        padding: 14px 16px;
+        margin-top: 12px;
+        border: 1px solid var(--neutral-200);
+      }
+      .review-form .emotion-btn, .review-form .motivation-btn {
+        border: 1.5px solid var(--neutral-300);
+        border-radius: 20px;
+        padding: 4px 12px;
+        font-size: 0.82rem;
+        cursor: pointer;
+        background: white;
+        transition: all 0.15s;
+        margin: 3px 3px 3px 0;
+      }
+      .review-form .emotion-btn.selected, .review-form .motivation-btn.selected {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+      }
+      .sell-prompt-banner {
+        background: linear-gradient(90deg, #fef3c7, #fffbeb);
+        border: 1.5px solid #f59e0b;
+        border-radius: 12px;
+        padding: 12px 16px;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
       
       /* 漲跌顏色 */
       .pnl-positive { 
@@ -607,6 +640,7 @@
         const [trades, setTrades] = useState([]);
         const [portfolio, setPortfolio] = useState(null);
         const [apiStatus, setApiStatus] = useState('checking');
+        const [sellPromptTicker, setSellPromptTicker] = useState(null);
         const messagesEndRef = useRef(null);
         
         useEffect(() => {
@@ -669,14 +703,21 @@
               role: 'assistant', 
               content: content
             }]);
+            // SELL 後提醒復盤
+            const action = result.action || result.result?.action;
+            const ticker = result.ticker || result.result?.ticker;
+            if (action === 'SELL' && ticker) {
+              setSellPromptTicker(ticker);
+              setActiveTab('trades');
+            }
           } catch (e) {
-            setMessages(prev => [...prev, { 
-              id: Date.now() + 1, 
-              role: 'assistant', 
-              content: '抱歉，處理過程中發生錯誤。請稍後再試。' 
+            setMessages(prev => [...prev, {
+              id: Date.now() + 1,
+              role: 'assistant',
+              content: '抱歉，處理過程中發生錯誤。請稍後再試。'
             }]);
           }
-          
+
           setLoading(false);
           loadData();
         };
@@ -735,7 +776,7 @@
                   messagesEndRef={messagesEndRef}
                 />
               )}
-              {activeTab === 'trades' && <TradesTab trades={trades} onDelete={handleDeleteTrade} onRefresh={loadData} />}
+              {activeTab === 'trades' && <TradesTab trades={trades} onDelete={handleDeleteTrade} onRefresh={loadData} sellPromptTicker={sellPromptTicker} onDismissSellPrompt={() => setSellPromptTicker(null)} />}
               {activeTab === 'stats' && <StatsTab trades={trades} portfolio={portfolio} />}
               {activeTab === 'settings' && <SettingsTab />}
             </div>
@@ -880,8 +921,64 @@
         );
       }
       
-      function TradesTab({ trades, onDelete, onRefresh }) {
+      const MOTIVATIONS = ['計劃布局', '突破追買', '看別人買', '聽消息', '其他'];
+      const EMOTIONS = ['冷靜', '有點急', '非常FOMO'];
+      const EMOTION_EMOJI = { '冷靜': '✅', '有點急': '⚠️', '非常FOMO': '😱' };
+
+      function ReviewForm({ trade, onSave, onCancel }) {
+        const [motivation, setMotivation] = useState(trade.motivation || '');
+        const [emotion, setEmotion] = useState(trade.emotion || '');
+        const [lesson, setLesson] = useState(trade.lesson || '');
+        const [nextAction, setNextAction] = useState(trade.next_action || '');
+        const [saving, setSaving] = useState(false);
+
+        const handleSubmit = async () => {
+          setSaving(true);
+          try {
+            await axios.put(`${API_BASE}/trades/${trade.id}/review`, {
+              motivation, emotion, lesson, next_action: nextAction
+            });
+            onSave();
+          } catch (e) {
+            alert('儲存失敗，請重試');
+          }
+          setSaving(false);
+        };
+
+        return (
+          <div className="review-form">
+            <div className="fw-semibold mb-2" style={{fontSize:'0.9rem'}}>📝 復盤</div>
+            <div className="mb-2">
+              <div className="text-muted mb-1" style={{fontSize:'0.8rem'}}>買入動機</div>
+              <div>{MOTIVATIONS.map(m => (
+                <button key={m} className={`motivation-btn ${motivation === m ? 'selected' : ''}`} onClick={() => setMotivation(m)}>{m}</button>
+              ))}</div>
+            </div>
+            <div className="mb-2">
+              <div className="text-muted mb-1" style={{fontSize:'0.8rem'}}>當時情緒</div>
+              <div>{EMOTIONS.map(e => (
+                <button key={e} className={`emotion-btn ${emotion === e ? 'selected' : ''}`} onClick={() => setEmotion(e)}>{EMOTION_EMOJI[e]} {e}</button>
+              ))}</div>
+            </div>
+            <div className="mb-2">
+              <div className="text-muted mb-1" style={{fontSize:'0.8rem'}}>學到什麼</div>
+              <textarea className="form-control form-control-sm" rows="2" placeholder="這筆交易讓我學到..." value={lesson} onChange={e => setLesson(e.target.value)} />
+            </div>
+            <div className="mb-3">
+              <div className="text-muted mb-1" style={{fontSize:'0.8rem'}}>下次怎麼做</div>
+              <textarea className="form-control form-control-sm" rows="2" placeholder="下次遇到類似情況我會..." value={nextAction} onChange={e => setNextAction(e.target.value)} />
+            </div>
+            <div className="d-flex gap-2">
+              <button className="btn btn-primary btn-sm" onClick={handleSubmit} disabled={saving}>{saving ? '儲存中...' : '儲存復盤'}</button>
+              <button className="btn btn-outline-secondary btn-sm" onClick={onCancel}>取消</button>
+            </div>
+          </div>
+        );
+      }
+
+      function TradesTab({ trades, onDelete, onRefresh, sellPromptTicker, onDismissSellPrompt }) {
         const [editingTrade, setEditingTrade] = useState(null);
+        const [reviewingTradeId, setReviewingTradeId] = useState(null);
 
         const handleSaveEdit = async (updatedTrade) => {
             try {
@@ -893,6 +990,19 @@
             }
         };
 
+        const handleReviewSaved = () => {
+          setReviewingTradeId(null);
+          if (onRefresh) onRefresh();
+        };
+
+        // If sell prompt ticker is set, auto-open review for latest unreviewed BUY of that ticker
+        useEffect(() => {
+          if (sellPromptTicker) {
+            const unreviewed = trades.find(t => t.action === 'BUY' && t.ticker === sellPromptTicker && !t.reviewed_at);
+            if (unreviewed) setReviewingTradeId(unreviewed.id);
+          }
+        }, [sellPromptTicker]);
+
         if (!trades || trades.length === 0) {
           return (
             <div className="empty-state">
@@ -902,14 +1012,27 @@
             </div>
           );
         }
-        
+
         return (
           <div>
+            {sellPromptTicker && (
+              <div className="sell-prompt-banner">
+                <span>💡 已賣出 <strong>{sellPromptTicker}</strong>，要對當初的買入做復盤嗎？</span>
+                <div className="d-flex gap-2">
+                  <button className="btn btn-sm btn-warning" onClick={() => {
+                    const unreviewed = trades.find(t => t.action === 'BUY' && t.ticker === sellPromptTicker && !t.reviewed_at);
+                    if (unreviewed) setReviewingTradeId(unreviewed.id);
+                    onDismissSellPrompt();
+                  }}>去復盤</button>
+                  <button className="btn btn-sm btn-outline-secondary" onClick={onDismissSellPrompt}>略過</button>
+                </div>
+              </div>
+            )}
             {editingTrade && (
-                <EditTradeModal 
-                    trade={editingTrade} 
-                    onSave={handleSaveEdit} 
-                    onCancel={() => setEditingTrade(null)} 
+                <EditTradeModal
+                    trade={editingTrade}
+                    onSave={handleSaveEdit}
+                    onCancel={() => setEditingTrade(null)}
                 />
             )}
 
@@ -923,11 +1046,14 @@
                         <i className="bi bi-trash"></i>
                     </div>
                 </div>
-                
+
                 <div className="d-flex justify-content-between align-items-start">
                   <div>
                     <h6 className="mb-1">
                       {trade.action === 'BUY' ? '🟢 買入' : trade.action === 'SELL' ? '🔴 賣出' : trade.action === 'DEPOSIT' ? '💰 存款' : trade.action === 'WITHDRAW' ? '💸 提款' : '🏠 資產'} {trade.ticker || trade.asset_name}
+                      {trade.reviewed_at && trade.emotion && (
+                        <span className="ms-2" title={`情緒：${trade.emotion}`} style={{fontSize:'1rem'}}>{EMOTION_EMOJI[trade.emotion]}</span>
+                      )}
                     </h6>
                     <small className="text-muted">{trade.date}</small>
                   </div>
@@ -936,17 +1062,29 @@
                     {trade.quantity && <small className="text-muted">{trade.quantity} 股</small>}
                   </div>
                 </div>
-                
-                {trade.rating && (
-                  <div className="mt-2">
-                    <span className="rating-star">{trade.rating}</span>
-                    {trade.suggestion && <span className="ms-2 text-muted">{trade.suggestion}</span>}
-                  </div>
-                )}
-                
+
                 {trade.rsi && (
                   <div className="mt-2 small text-muted">
                     RSI: {trade.rsi.toFixed(1)} | 趨勢: {trade.trend}
+                  </div>
+                )}
+
+                {trade.action === 'BUY' && (
+                  <div className="mt-2">
+                    {reviewingTradeId === trade.id ? (
+                      <ReviewForm trade={trade} onSave={handleReviewSaved} onCancel={() => setReviewingTradeId(null)} />
+                    ) : (
+                      <button
+                        className="btn btn-outline-secondary btn-sm"
+                        style={{fontSize:'0.78rem', padding:'2px 10px'}}
+                        onClick={() => setReviewingTradeId(trade.id)}
+                      >
+                        {trade.reviewed_at ? '✏️ 編輯復盤' : '+ 復盤'}
+                      </button>
+                    )}
+                    {trade.reviewed_at && trade.motivation && reviewingTradeId !== trade.id && (
+                      <small className="ms-2 text-muted">{EMOTION_EMOJI[trade.emotion]} {trade.motivation}</small>
+                    )}
                   </div>
                 )}
               </div>
@@ -1199,6 +1337,9 @@
 
         return (
           <div>
+            {/* NoFOMO 報告 — 最頂部 */}
+            <FomoReport trades={trades} />
+
             <div className="d-flex justify-content-end align-items-center mb-2 gap-2">
               {fxLoading
                 ? <span className="text-muted small">匯率載入中…</span>
@@ -1411,6 +1552,117 @@
                   </div>
                 </div>
               </div>
+            </div>
+
+          </div>
+        );
+      }
+
+      function FomoReport({ trades }) {
+        const [expanded, setExpanded] = useState(false);
+        const buyTrades = trades.filter(t => t.action === 'BUY');
+        const reviewed = buyTrades.filter(t => t.reviewed_at);
+        const unreviewedCount = buyTrades.length - reviewed.length;
+        const fomoCount = reviewed.filter(t => t.emotion === '非常FOMO').length;
+        const rushCount = reviewed.filter(t => t.emotion === '有點急').length;
+        const calmCount = reviewed.filter(t => t.emotion === '冷靜').length;
+        const fomoRate = reviewed.length > 0 ? Math.round(fomoCount / reviewed.length * 100) : 0;
+
+        const lastFomo = reviewed
+          .filter(t => t.emotion === '非常FOMO')
+          .sort((a, b) => new Date(b.reviewed_at) - new Date(a.reviewed_at))[0];
+
+        const motivationMap = {};
+        reviewed.forEach(t => {
+          const m = t.motivation || '其他';
+          motivationMap[m] = (motivationMap[m] || 0) + 1;
+        });
+        const motivationEntries = Object.entries(motivationMap).sort((a, b) => b[1] - a[1]);
+
+        if (buyTrades.length === 0) return null;
+
+        const fomoColor = fomoRate >= 50 ? 'var(--danger)' : fomoRate >= 25 ? 'var(--warning)' : 'var(--success)';
+
+        return (
+          <div className="card mb-4" style={{borderLeft: `4px solid ${fomoColor}`}}>
+            <div className="card-body pb-2">
+              {/* 精簡概覽 */}
+              <div className="d-flex justify-content-between align-items-center">
+                <div className="d-flex align-items-center gap-3">
+                  <span className="fw-bold" style={{fontSize:'0.95rem'}}>😱 NoFOMO 報告</span>
+                  {reviewed.length === 0 ? (
+                    <span className="text-muted small">尚無復盤記錄</span>
+                  ) : (
+                    <div className="d-flex gap-3 align-items-center">
+                      <span style={{color: fomoColor, fontWeight:'700', fontSize:'1.2rem'}}>{fomoRate}%</span>
+                      <span className="text-muted small">FOMO 率</span>
+                      <span className="text-muted small">·</span>
+                      <span className="text-muted small">已復盤 {reviewed.length} 筆</span>
+                      {lastFomo && (
+                        <>
+                          <span className="text-muted small">·</span>
+                          <span className="text-muted small">最近 FOMO：{lastFomo.ticker} {lastFomo.date ? lastFomo.date.replace('T', ' ').slice(0,19) : ''}</span>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <button
+                  className="btn btn-link btn-sm text-muted p-0"
+                  onClick={() => setExpanded(e => !e)}
+                  style={{fontSize:'0.82rem', textDecoration:'none'}}
+                >
+                  {expanded ? '收起 ▲' : '詳細 ▼'}
+                </button>
+              </div>
+
+              {/* 詳細區塊（可展開） */}
+              {expanded && reviewed.length > 0 && (
+                <div className="mt-3 pt-3" style={{borderTop:'1px solid var(--neutral-200)'}}>
+                  <div className="row g-2 mb-3">
+                    <div className="col-4 text-center">
+                      <div className="fw-bold fs-5">{reviewed.length}</div>
+                      <small className="text-muted">已復盤</small>
+                    </div>
+                    <div className="col-4 text-center">
+                      <div className="fw-bold fs-5" style={{color: fomoCount > 0 ? 'var(--danger)' : 'var(--success)'}}>{fomoCount}</div>
+                      <small className="text-muted">😱 FOMO 次數</small>
+                    </div>
+                    <div className="col-4 text-center">
+                      <div className="fw-bold fs-5" style={{color: fomoColor}}>{fomoRate}%</div>
+                      <small className="text-muted">FOMO 率</small>
+                    </div>
+                  </div>
+                  <div className="mb-3">
+                    <div className="small text-muted mb-1">情緒分布</div>
+                    <div className="d-flex gap-2 flex-wrap">
+                      {calmCount > 0 && <span className="badge" style={{background:'#d1fae5',color:'#065f46'}}>✅ 冷靜 {calmCount}</span>}
+                      {rushCount > 0 && <span className="badge" style={{background:'#fef3c7',color:'#92400e'}}>⚠️ 有點急 {rushCount}</span>}
+                      {fomoCount > 0 && <span className="badge" style={{background:'#fee2e2',color:'#991b1b'}}>😱 非常FOMO {fomoCount}</span>}
+                    </div>
+                  </div>
+                  {motivationEntries.length > 0 && (
+                    <div>
+                      <div className="small text-muted mb-1">買入動機分布</div>
+                      {motivationEntries.map(([m, count]) => (
+                        <div key={m} className="d-flex align-items-center mb-1">
+                          <div className="small me-2" style={{width:'80px', flexShrink:0}}>{m}</div>
+                          <div className="flex-grow-1 bg-light rounded" style={{height:'8px', overflow:'hidden'}}>
+                            <div style={{width:`${Math.round(count/reviewed.length*100)}%`, height:'100%', background:'var(--primary)', borderRadius:'5px'}}></div>
+                          </div>
+                          <div className="small ms-2 text-muted">{count}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {unreviewedCount > 0 && (
+                    <div className="mt-2 small text-muted">還有 {unreviewedCount} 筆買入尚未復盤</div>
+                  )}
+                </div>
+              )}
+              {expanded && reviewed.length === 0 && (
+                <p className="text-muted small mt-3 mb-0">到「日誌」頁面對買入交易進行復盤，這裡就會出現你的 FOMO 分析！</p>
+              )}
             </div>
           </div>
         );

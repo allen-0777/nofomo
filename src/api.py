@@ -15,7 +15,7 @@ import utils
 import market_data
 import portfolio
 from chat_service import ChatService
-from database import SessionLocal
+from database import SessionLocal, migrate_review_columns
 from models import Settings
 
 # ---------------------------------------------------------------------------
@@ -41,6 +41,9 @@ CORS(app)
 
 # Initialize Chat Service
 chat_service = ChatService()
+
+# Run DB migrations
+migrate_review_columns()
 
 # ---------------------------------------------------------------------------
 # Data Paths (for Watchlist/Alerts)
@@ -145,11 +148,21 @@ def edit_trade(trade_id):
     data = request.json
     if not data:
         return jsonify({'error': 'Missing update data'}), 400
-    
+
     success = portfolio.edit_trade(trade_id, data)
     if success:
         return jsonify({'success': True})
     return jsonify({'error': 'Trade not found or failed to edit'}), 404
+
+@app.route('/api/trades/<trade_id>/review', methods=['PUT'])
+def review_trade(trade_id):
+    data = request.json
+    if not data:
+        return jsonify({'error': 'Missing review data'}), 400
+    success = portfolio.review_trade(trade_id, data)
+    if success:
+        return jsonify({'success': True})
+    return jsonify({'error': 'Trade not found or failed to save review'}), 404
 
 @app.route('/api/portfolio/summary')
 def portfolio_summary():
