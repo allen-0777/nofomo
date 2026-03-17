@@ -828,12 +828,8 @@
       function ChatTab({ messages, input, setInput, handleSend, loading, messagesEndRef }) {
         const [listening, setListening] = useState(false);
         const quickActions = [
-            { label: '買股票', text: '我買了 股 ' },
-            { label: '賣股票', text: '我賣了 股 ' },
-            { label: '存錢', text: '存 ' },
-            { label: '記帳', text: '領 ' },
-            { label: '資產估值', text: '房子 值 ' },
-            { label: '查股價', text: '股價 ' },
+            { label: '買進', text: '我買了 股 ' },
+            { label: '賣出', text: '我賣了 股 ' },
         ];
 
         const startListening = () => {
