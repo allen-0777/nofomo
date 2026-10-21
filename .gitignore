@@ -9,3 +9,7 @@ data/
 src/logs/
 *.db
 *.log
+
+# Dependencies and runtime logs
+node_modules/
+logs/
